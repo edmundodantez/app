@@ -272,3 +272,121 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .tab-btn svg { width: 24px; height: 24px; }
 .tab-btn.active { color: var(--accent); font-weight: 600; }
+
+/* ===== Componentes do modelo imobiliário ===== */
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+.row-gap { display: flex; gap: 8px; }
+.row-gap.wrap { flex-wrap: wrap; }
+
+.mini-btn {
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 550;
+  padding: 7px 12px;
+  border-radius: 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.mini-btn.danger { color: var(--bad-text); }
+
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 2px; vertical-align: 1px; }
+.dot-on { background: var(--good-text); }
+.dot-off { background: var(--text-muted); }
+
+.up { color: var(--good-text); }
+.down { color: var(--bad-text); }
+
+.warn-box {
+  background: color-mix(in srgb, #fab219 14%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, #fab219 45%, var(--surface-1));
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 0.83rem;
+  line-height: 1.45;
+  margin-bottom: 10px;
+}
+
+.deal-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.deal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  border-radius: 12px;
+  padding: 11px 12px;
+  cursor: pointer;
+}
+.deal-item-top { display: flex; align-items: center; gap: 6px; }
+.deal-name { font-weight: 600; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deal-fin { font-size: 0.7rem; color: var(--text-muted); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px; }
+.deal-item-bottom { font-size: 0.78rem; color: var(--text-secondary); }
+
+.form-sec { margin: 16px 0 8px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 600; }
+#deal-form .field-grid { margin-bottom: 4px; }
+
+.kv-table td:first-child { color: var(--text-secondary); white-space: normal; }
+.row-strong td { font-weight: 650; }
+.row-link { cursor: pointer; }
+
+.draw-editor input[type="text"] {
+  width: 100%;
+  min-width: 3.5em;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.8rem;
+  padding: 5px 6px;
+}
+.draw-editor td:nth-child(2) input { min-width: 9em; }
+.draw-editor input[type="date"] {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 4px 5px;
+}
+.draw-off { opacity: 0.45; }
+
+details { border-top: 1px solid var(--grid); padding-top: 8px; margin-top: 8px; }
+details:first-child { border-top: 0; margin-top: 0; padding-top: 0; }
+summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 6px 0;
+  color: var(--accent);
+}
+
+#deal-form select, .input-wrap select:not(.suffix-select) {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 10px 0;
+  outline: none;
+  min-width: 0;
+}
+.input-wrap input[type="date"] {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 8px 0;
+  outline: none;
+  min-width: 0;
+}

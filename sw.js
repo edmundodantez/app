@@ -1,10 +1,12 @@
 'use strict';
 
-const CACHE = 'investcalc-v1';
+const CACHE = 'investcalc-v2';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
+  './model.js',
+  './seed.js',
   './app.js',
   './manifest.webmanifest',
   './icons/icon-192.png',

@@ -1,35 +1,59 @@
-# InvestCalc — Análise de Investimentos
+# InvestCalc — Real Estate Cashflow (PWA)
 
-Web app (PWA) para iPhone com calculadoras de análise de investimentos. Sem
-dependências, sem build — é só HTML, CSS e JavaScript puros.
+Web app para iPhone baseado na planilha **Edmundo_Cashflow.xlsx** (Real Estate
+Multi-Deal Cashflow Model). Sem dependências, sem build — HTML, CSS e
+JavaScript puros.
 
-## Calculadoras
+## O que ele faz
 
-- **Juros compostos** — projeção de patrimônio com aporte inicial, aportes
-  mensais, taxa (a.a. ou a.m.) e prazo. Mostra valor final, total investido,
-  total em juros, gráfico interativo da evolução e tabela ano a ano.
-- **Comparador de renda fixa** — CDB (% do CDI), LCI/LCA (isentas), Tesouro
-  Selic e poupança, com IR regressivo calculado automaticamente pelo prazo.
-- **Valuation de ações** — preço teto pelo método Bazin (dividendos ÷ yield
-  desejado), preço justo de Graham (√(22,5 × LPA × VPA)), dividend yield,
-  P/L e P/VP, com margem de desconto/ágio sobre a cotação.
+Reproduz o modelo da planilha, célula por célula:
 
-Os valores digitados ficam salvos no aparelho (localStorage) e o app funciona
-offline depois do primeiro acesso (service worker).
+- **Deals** — cada deal tem os mesmos inputs da planilha: preço do terreno,
+  orçamento de construção, preço de venda esperado, datas (closing, início da
+  obra, venda/refi), tipo de financiamento (Construction Loan ou Cash), land
+  advance no closing ou com atraso, LTC, juros, fees, cronograma de até 10
+  draws com % e datas (incluindo valores e datas fixados manualmente).
+- **KPIs por deal** — lucro projetado, ROI headline (na base escolhida: peak
+  cash, após land reimbursement ou capital médio), ROI anualizado, pico de
+  exposição de caixa, capital médio, juros totais, break-even, margem,
+  sensibilidade do preço de venda (±10%) e cashflow mensal completo.
+- **Cashflow consolidado** (Master Cashflow) — soma todos os deals ativos mês a
+  mês contra o caixa inicial e mostra saldo projetado, pico de exposição e o
+  menor saldo (com alerta quando o caixa fica negativo).
+- **Ajustes** (Parameters) — defaults globais usados pelos deals que não têm
+  valor próprio, cronograma padrão de draws, backup/restauração em JSON e
+  restauração dos 10 deals originais da planilha.
+
+O motor de cálculo (`model.js`) é validado por `test/model.test.js` contra os
+valores calculados pela própria planilha (todos os deals e o portfólio batem
+ao centavo):
+
+```bash
+node test/model.test.js
+```
+
+Os dados ficam no aparelho (localStorage) e o app funciona offline após o
+primeiro acesso.
+
+## Diferença conhecida em relação à planilha
+
+A aba **Dashboard** da planilha soma colunas erradas em três células: B13
+("Total Holding Costs") soma a coluna de lucro, B14 ("Total Projected Profit")
+soma a coluna de ROI e, por consequência, B15/B16 (ROIs do portfólio) saem
+errados. O app calcula esses totais com as colunas corretas.
 
 ## Como publicar (GitHub Pages)
 
 1. No GitHub, abra **Settings → Pages** do repositório.
 2. Em "Build and deployment", escolha **Deploy from a branch** e selecione o
-   branch principal com a pasta `/ (root)`.
+   branch com a pasta `/ (root)`.
 3. O app ficará disponível em `https://<seu-usuario>.github.io/app/`.
 
 ## Como instalar no iPhone
 
 1. Abra o endereço do app no **Safari**.
-2. Toque no botão **Compartilhar** (quadrado com seta para cima).
-3. Toque em **Adicionar à Tela de Início**.
-4. O InvestCalc aparece como um app, com ícone próprio e tela cheia.
+2. Toque em **Compartilhar → Adicionar à Tela de Início**.
+3. O InvestCalc vira um app com ícone próprio e tela cheia.
 
 ## Rodar localmente
 
@@ -38,5 +62,4 @@ python3 -m http.server 8000
 # abra http://localhost:8000
 ```
 
-(O service worker só é registrado em HTTPS, mas todo o resto funciona em
-localhost.)
+(O service worker só registra em HTTPS, mas todo o resto funciona em localhost.)
