@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>InvestCalc — Análise de Investimentos</title>
+  <meta name="description" content="Calculadoras de análise de investimentos: juros compostos, renda fixa e valuation de ações.">
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+
+  <!-- iOS PWA -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="InvestCalc">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>InvestCalc</h1>
+    <p class="subtitle">Análise de investimentos</p>
+  </header>
+
+  <main>
+    <!-- ============ JUROS COMPOSTOS ============ -->
+    <section id="tab-juros" class="tab-panel" data-tab="juros">
+      <div class="card">
+        <h2>Juros compostos</h2>
+        <p class="hint">Projete o crescimento do seu patrimônio com aportes mensais.</p>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Aporte inicial</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="jc-inicial" type="text" inputmode="decimal" value="10.000" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Aporte mensal</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="jc-mensal" type="text" inputmode="decimal" value="500" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Taxa de juros</span>
+            <div class="input-wrap">
+              <input id="jc-taxa" type="text" inputmode="decimal" value="10,5" autocomplete="off">
+              <select id="jc-taxa-unidade" class="suffix-select" aria-label="Unidade da taxa">
+                <option value="aa" selected>% a.a.</option>
+                <option value="am">% a.m.</option>
+              </select>
+            </div>
+          </label>
+          <label class="field">
+            <span>Prazo</span>
+            <div class="input-wrap">
+              <input id="jc-prazo" type="text" inputmode="decimal" value="10" autocomplete="off">
+              <select id="jc-prazo-unidade" class="suffix-select" aria-label="Unidade do prazo">
+                <option value="anos" selected>anos</option>
+                <option value="meses">meses</option>
+              </select>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="stat-row">
+          <div class="stat-tile">
+            <span class="stat-label">Valor final</span>
+            <span class="stat-value" id="jc-final">—</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">Total investido</span>
+            <span class="stat-value" id="jc-investido">—</span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">Total em juros</span>
+            <span class="stat-value" id="jc-juros">—</span>
+          </div>
+        </div>
+
+        <div class="viz-root">
+          <div class="chart-legend" id="jc-legend"></div>
+          <div class="chart-holder" id="jc-chart"></div>
+        </div>
+
+        <button type="button" class="ghost-btn" id="jc-toggle-tabela" aria-expanded="false">Ver tabela ano a ano</button>
+        <div class="table-wrap" id="jc-tabela-wrap" hidden>
+          <table id="jc-tabela">
+            <thead><tr><th>Ano</th><th>Investido</th><th>Juros</th><th>Acumulado</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ RENDA FIXA ============ -->
+    <section id="tab-rf" class="tab-panel" data-tab="rf" hidden>
+      <div class="card">
+        <h2>Comparador de renda fixa</h2>
+        <p class="hint">Compare CDB, LCI/LCA, Tesouro Selic e poupança, já descontando o IR regressivo.</p>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Valor aplicado</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="rf-valor" type="text" inputmode="decimal" value="10.000" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Prazo (meses)</span>
+            <div class="input-wrap">
+              <input id="rf-prazo" type="text" inputmode="decimal" value="24" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>CDI / Selic atual</span>
+            <div class="input-wrap">
+              <input id="rf-cdi" type="text" inputmode="decimal" value="10,5" autocomplete="off">
+              <span class="suffix">% a.a.</span>
+            </div>
+          </label>
+          <label class="field">
+            <span>CDB rende</span>
+            <div class="input-wrap">
+              <input id="rf-cdb-pct" type="text" inputmode="decimal" value="105" autocomplete="off">
+              <span class="suffix">% do CDI</span>
+            </div>
+          </label>
+          <label class="field">
+            <span>LCI/LCA rende</span>
+            <div class="input-wrap">
+              <input id="rf-lci-pct" type="text" inputmode="decimal" value="92" autocomplete="off">
+              <span class="suffix">% do CDI</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <p class="ir-note" id="rf-ir-note"></p>
+        <div class="bar-chart" id="rf-bars" role="img" aria-label="Comparação do valor líquido por investimento"></div>
+        <div class="table-wrap">
+          <table id="rf-tabela">
+            <thead><tr><th>Investimento</th><th>Bruto</th><th>IR</th><th>Líquido</th><th>Rende</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ AÇÕES ============ -->
+    <section id="tab-acoes" class="tab-panel" data-tab="acoes" hidden>
+      <div class="card">
+        <h2>Valuation de ações</h2>
+        <p class="hint">Informe os fundamentos da ação e veja preço teto (método Bazin), preço justo de Graham e múltiplos.</p>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Cotação atual</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="ac-cotacao" type="text" inputmode="decimal" value="25,00" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Dividendos por ação (média anual)</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="ac-dpa" type="text" inputmode="decimal" value="1,80" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Lucro por ação (LPA)</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="ac-lpa" type="text" inputmode="decimal" value="3,20" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Valor patrimonial por ação (VPA)</span>
+            <div class="input-wrap"><span class="prefix">R$</span>
+              <input id="ac-vpa" type="text" inputmode="decimal" value="18,00" autocomplete="off">
+            </div>
+          </label>
+          <label class="field">
+            <span>Dividend yield desejado</span>
+            <div class="input-wrap">
+              <input id="ac-yield" type="text" inputmode="decimal" value="6" autocomplete="off">
+              <span class="suffix">% a.a.</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="stat-row">
+          <div class="stat-tile">
+            <span class="stat-label">Preço teto (Bazin)</span>
+            <span class="stat-value" id="ac-bazin">—</span>
+            <span class="stat-delta" id="ac-bazin-delta"></span>
+          </div>
+          <div class="stat-tile">
+            <span class="stat-label">Preço justo (Graham)</span>
+            <span class="stat-value" id="ac-graham">—</span>
+            <span class="stat-delta" id="ac-graham-delta"></span>
+          </div>
+        </div>
+        <div class="stat-row">
+          <div class="stat-tile small">
+            <span class="stat-label">Dividend yield atual</span>
+            <span class="stat-value" id="ac-dy">—</span>
+          </div>
+          <div class="stat-tile small">
+            <span class="stat-label">P/L</span>
+            <span class="stat-value" id="ac-pl">—</span>
+          </div>
+          <div class="stat-tile small">
+            <span class="stat-label">P/VP</span>
+            <span class="stat-value" id="ac-pvp">—</span>
+          </div>
+        </div>
+        <p class="hint">Preço teto Bazin = dividendos ÷ yield desejado. Graham = √(22,5 × LPA × VPA). A margem indica quanto a cotação está abaixo (↑ desconto) ou acima (↓ ágio) da referência.</p>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tab-bar" role="tablist" aria-label="Calculadoras">
+    <button class="tab-btn active" role="tab" aria-selected="true" data-target="juros">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>Juros</span>
+    </button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-target="rf">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="12" width="4" height="8" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="10" y="8" width="4" height="12" rx="1" fill="none" stroke="currentColor" stroke-width="2"/><rect x="17" y="4" width="4" height="16" rx="1" fill="none" stroke="currentColor" stroke-width="2"/></svg>
+      <span>Renda fixa</span>
+    </button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-target="acoes">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v10M9.5 9.5h3.75a1.75 1.75 0 1 1 0 3.5h-2.5a1.75 1.75 0 1 0 0 3.5H15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Ações</span>
+    </button>
+  </nav>
+
+  <div class="chart-tooltip" id="tooltip" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
