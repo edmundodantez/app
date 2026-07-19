@@ -558,6 +558,44 @@ function buildAnalysisDoc(deal, r) {
       strongRow: r.sensitivity.findIndex((s) => s.scenario === 0),
     },
     footer: 'Juros mantidos no cenário base na sensibilidade (efeito só do preço). Gerado pelo InvestCalc.',
+    charts: [
+      {
+        title: 'Exposição de caixa mês a mês',
+        xlabels: r.months.map((m) => monthLabel(m.start)),
+        series: r.cash
+          ? [{ name: 'Exposição de caixa', color: 'blue', values: r.months.map((m) => m.O) }]
+          : [
+            { name: 'Exposição de caixa', color: 'blue', values: r.months.map((m) => m.O) },
+            { name: 'Saldo do empréstimo', color: 'green', values: r.months.map((m) => m.N) },
+          ],
+      },
+      {
+        title: 'Do investimento ao retorno — posição líquida acumulada',
+        xlabels: r.months.map((m) => monthLabel(m.start)),
+        series: [{ name: 'Posição acumulada', color: 'blue', values: r.months.map((m) => m.M) }],
+      },
+    ],
+    monthly: {
+      heading: 'Cashflow mensal completo',
+      cols: [
+        { label: 'Mês', x: 54 },
+        { label: 'Saídas', x: 105 },
+        { label: 'Entradas', x: 185 },
+        { label: 'Líquido', x: 265 },
+        { label: 'Acumulado', x: 345 },
+        { label: 'Exposição', x: 425 },
+        { label: 'Saldo empr.', x: 500 },
+      ],
+      rows: r.months.map((m) => [
+        monthLabel(m.start),
+        money(m.H),
+        money(m.K),
+        [money(m.L), m.L > 0 ? 'good' : m.L < 0 ? 'bad' : undefined],
+        money(m.M),
+        money(m.O),
+        r.cash ? '—' : money(m.N),
+      ]),
+    },
   };
 }
 
