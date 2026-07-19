@@ -492,6 +492,72 @@ function renderDealDetail(el, deal) {
 }
 
 /* =====================================================
+   Compartilhar análise (Web Share API → AirDrop, Mail, etc.)
+===================================================== */
+function buildShareSummary(deal, r) {
+  const L = [];
+  const pct = (v) => fmtPct1.format(v);
+  L.push('InvestCalc — Análise de deal');
+  L.push(deal.name || '(sem nome)');
+  L.push('Gerada em ' + fmtDateFull.format(new Date()));
+  L.push('');
+  L.push('PREMISSAS');
+  L.push('Terreno: ' + money(deal.land || 0));
+  L.push('Construção: ' + money(deal.constr || 0));
+  L.push('Venda esperada: ' + money(deal.sale || 0));
+  L.push('Financiamento: ' + (r.cash ? 'Cash (recursos próprios)'
+    : `Construction Loan (LTC ${pct(r.resolved.ltc)}, juros ${pct(r.resolved.rate)} a.a., fees ${pct(r.resolved.loanFeesPct)} all-in)`));
+  if (!r.cash && deal.advTiming === 'Delayed') {
+    L.push(`Land advance com atraso de ${deal.advDelayMo || 0} mês(es)`);
+  }
+  L.push(`Datas: closing ${dateLabel(Model.parseDate(deal.closing))} · obra ${dateLabel(Model.parseDate(deal.constrStart))} · venda ${dateLabel(Model.parseDate(deal.saleDate))}`);
+  L.push(`Período: ${r.holdingMonths} meses · Custos de venda: ${pct(r.resolved.saleCostPct)}`);
+  L.push('');
+  L.push('RESULTADOS');
+  L.push('Lucro projetado: ' + money(r.profit));
+  L.push(`ROI (${deal.basis === 'Peak Cash' ? 'peak cash' : deal.basis === 'Average Capital Deployed' ? 'capital médio' : 'após land reimb.'}): ` + pct(r.headlineROI));
+  L.push('ROI anualizado: ' + pct(r.annualizedROI));
+  L.push('Margem sobre a venda: ' + pct(r.margin));
+  L.push('Pico de caixa próprio: ' + money(r.peakExposure));
+  if (!r.cash) {
+    L.push('Pico incl. draw float: ' + money(r.peakWithFloat));
+    L.push('Land advance: ' + money(r.landAdvance));
+    L.push('Fees no closing: ' + money(r.loanFees));
+    L.push('Juros totais: ' + money(r.totalInterest));
+  }
+  L.push('Caixa necessário no closing: ' + money(r.initialCashAtClosing));
+  L.push('Capital médio investido: ' + money(r.avgCapital));
+  L.push('Break-even (venda): ' + money(r.breakEven));
+  L.push('');
+  L.push('SENSIBILIDADE DO PREÇO DE VENDA');
+  for (const s of r.sensitivity) {
+    const tag = s.scenario === 0 ? 'Base' : (s.scenario > 0 ? '+' : '') + fmtNum.format(s.scenario * 100) + '%';
+    L.push(`${tag}: ${money(s.price)} → lucro ${money(s.profit)} (ROI ${pct(s.roi)})`);
+  }
+  return L.join('\n');
+}
+
+async function shareAnalysis(deal) {
+  const r = Model.computeDeal(deal, state.params);
+  if (!r.active || !deal.closing || !deal.saleDate) {
+    alert('Complete a análise antes de compartilhar (status Ativo e datas de closing e venda).');
+    return;
+  }
+  const text = buildShareSummary(deal, r);
+  const title = 'Análise — ' + (deal.name || 'deal');
+  if (navigator.share) {
+    try { await navigator.share({ title, text }); return; }
+    catch (e) { if (e && e.name === 'AbortError') return; /* cancelado pelo usuário */ }
+  }
+  try {
+    await navigator.clipboard.writeText(text);
+    alert('Resumo copiado para a área de transferência.');
+  } catch {
+    prompt('Copie o resumo:', text);
+  }
+}
+
+/* =====================================================
    Calculadora (análise avulsa — não entra no cashflow)
 ===================================================== */
 function renderCalc() {
@@ -504,6 +570,10 @@ function renderCalc() {
         só se você tocar em <b>Salvar no cashflow</b>, que copia esta análise para a lista de deals.</p>
       <div class="row-gap wrap" style="margin-bottom:4px">
         <button class="mini-btn" id="calc-add">+ Salvar no cashflow</button>
+        <button class="mini-btn" id="calc-share">
+          <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M12 3l-4 4M12 3l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Compartilhar
+        </button>
         <button class="mini-btn danger" id="calc-clear">Limpar</button>
       </div>
       ${dealEditorBody(deal)}
@@ -519,6 +589,7 @@ function renderCalc() {
     currentDealId = copy.id;
     document.querySelector('.tab-btn[data-target="deals"]').click();
   });
+  el.querySelector('#calc-share').addEventListener('click', () => shareAnalysis(deal));
   el.querySelector('#calc-clear').addEventListener('click', () => {
     if (confirm('Limpar a calculadora e voltar aos valores padrão?')) {
       state.calc = freshCalcDeal();
@@ -806,7 +877,7 @@ function renderConfig() {
   });
   el.querySelector('#reset-seed').addEventListener('click', () => {
     if (confirm('Substituir TODOS os dados atuais pelos deals originais da planilha?')) {
-      state = { params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS) };
+      state = { params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS), calc: freshCalcDeal() };
       save();
       currentDealId = null;
       renderConfig();

@@ -10,7 +10,10 @@ Reproduz o modelo das planilhas, célula por célula:
 
 - **Calculadora** — análise avulsa de um deal (a Single Deal Analyzer): faça a
   conta sem sujar o portfólio; só entra no cashflow se você tocar em "Salvar
-  no cashflow". A última análise fica guardada no aparelho.
+  no cashflow". A última análise fica guardada no aparelho. O botão
+  **Compartilhar** gera um resumo em texto (premissas, resultados e
+  sensibilidade) e abre a folha nativa do iPhone — AirDrop, Mail, WhatsApp
+  etc. (em navegadores sem Web Share, copia para a área de transferência).
 
 - **Deals** — cada deal tem os mesmos inputs da planilha: preço do terreno,
   orçamento de construção, preço de venda esperado, datas (closing, início da

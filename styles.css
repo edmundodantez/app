@@ -390,3 +390,10 @@ summary {
   outline: none;
   min-width: 0;
 }
+
+.mini-btn .btn-icon {
+  width: 14px;
+  height: 14px;
+  vertical-align: -2px;
+  margin-right: 2px;
+}
