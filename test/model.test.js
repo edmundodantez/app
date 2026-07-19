@@ -73,6 +73,14 @@ for (const deal of SEED_DEALS) {
   check(`${deal.id}.annual`, r.annualizedROI, e.annual, 1e-6);
 }
 
+/* ===== 2b) Draw float com valor não-zero (15280 SW 50th, prazo 30 dias) =====
+ * Só o draw 3 (20% de 210k = 42.000, pago 01/05/2026, reembolsado 31/05/2026)
+ * cai no mesmo mês do pagamento — os demais reembolsos caem no mês seguinte. */
+const sw = Model.computeDeal(SEED_DEALS.find((d) => d.id === 'sw50th'), Model.DEFAULT_PARAMS);
+check('sw50th.float.draw3', sw.drawRows[2].sameMonthFloat, 42000);
+check('sw50th.float.outros', sw.drawRows.filter((_, i) => i !== 2).reduce((s, d) => s + d.sameMonthFloat, 0), 0);
+check('sw50th.peakWithFloat = peak + 42000', sw.peakWithFloat, sw.peakExposure + 42000);
+
 /* ===== 3) Deals inativos zeram tudo ===== */
 for (const id of ['goodrich', 'deal08']) {
   const r = Model.computeDeal(SEED_DEALS.find((d) => d.id === id), Model.DEFAULT_PARAMS);
