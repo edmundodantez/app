@@ -47,15 +47,12 @@ function datedifM(a, b) {
 
 /* ===== Defaults globais (aba Parameters) ===== */
 const DEFAULT_PARAMS = {
-  startingCash: 600000,       // B4
-  reimbDelayDays: 7,          // B5
+  startingCash: 600000,       // B4 (só o portfólio usa)
+  reimbDelayDays: 30,         // B5
   landAdvPct: 0.6,            // B6
   ltc: 0.85,                  // B7
   rate: 0.0925,               // B8
-  origPct: 0.025,             // B9
-  docsFee: 2500,              // B10
-  uwPct: 0.001,               // B11
-  appraisal: 550,             // B12
+  loanFeesPct: 0.05,          // B9 — all-in: origination + docs + underwriting + appraisal
   insurance: 1500,            // B13
   saleCostPct: 0.08,          // B14
   reimbPct: 1,                // B15
@@ -89,10 +86,7 @@ function computeDeal(deal, params) {
   const reimbPct = val(deal.reimbPct, P.reimbPct);
   const reimbDelayDays = val(deal.reimbDelayDays, P.reimbDelayDays);
   const rate = val(deal.rate, P.rate);
-  const origPct = val(deal.origPct, P.origPct);
-  const docsFee = val(deal.docsFee, P.docsFee);
-  const uwPct = val(deal.uwPct, P.uwPct);
-  const appraisal = val(deal.appraisal, P.appraisal);
+  const loanFeesPct = val(deal.loanFeesPct, P.loanFeesPct);
   const insurance = val(deal.insurance, P.insurance);
   const saleCostPct = val(deal.saleCostPct, P.saleCostPct);
   const holdCost = deal.holdCost || 0;
@@ -130,13 +124,16 @@ function computeDeal(deal, params) {
     const reimb = (cash || amount <= 0) ? 0
       : Math.min(amount * reimbPct, Math.max(0, G9 - reimbCum));           // I
     reimbCum += reimb;
-    drawRows.push({ num: i + 1, desc, pct, offset, isOn, payDate, amount, reimbDate, reimb });
+    // O33:O42 — reembolso que cai no MESMO mês do pagamento (float de caixa dentro do mês)
+    const sameMonthFloat = (isOn && !cash && payDate != null && reimb > 0 && reimbDate != null
+      && eomonth(payDate) === eomonth(reimbDate)) ? reimb : 0;
+    drawRows.push({ num: i + 1, desc, pct, offset, isOn, payDate, amount, reimbDate, reimb, sameMonthFloat });
   }
   const sumReimb = reimbCum;
 
   const G28 = (!active || cash) ? 0 : G6 + sumReimb;                       // Loan Fee Basis
   const G7 = (!active || cash) ? 0
-    : (G6 + sumReimb) * origPct + docsFee + G4 * uwPct + appraisal + insurance; // Loan Fees at Closing
+    : (G6 + sumReimb) * loanFeesPct + insurance;                           // Loan Fees at Closing (all-in + seguro)
   const G17 = (!active || cash || closing == null) ? null
     : (deal.advTiming === 'Delayed' ? edate(closing, deal.advDelayMo || 0) : closing); // Land Adv Receipt
   const G19 = (!active || closing == null || saleDate == null) ? 0
@@ -204,6 +201,8 @@ function computeDeal(deal, params) {
   const G26 = basis === 'Peak Cash' ? G23
     : basis === 'After Land Reimbursement' ? G24 : G25;                     // Headline ROI
   const G27 = G19 > 0 ? G26 * 12 / G19 : 0;                                 // Annualized ROI
+  const G30 = active
+    ? G13 + drawRows.reduce((s, r) => Math.max(s, r.sameMonthFloat), 0) : 0; // Peak incl. Draw Float
 
   // Sensibilidade (I4:L9 — juros mantidos no cenário base)
   const sensitivity = [-0.10, -0.05, 0, 0.05, 0.10].map((s) => {
@@ -221,8 +220,8 @@ function computeDeal(deal, params) {
 
   return {
     active, cash, resolved: {
-      ltc, landAdvPct, reimbPct, reimbDelayDays, rate, origPct, docsFee, uwPct,
-      appraisal, insurance, saleCostPct, holdCost, numDraws, basis,
+      ltc, landAdvPct, reimbPct, reimbDelayDays, rate, loanFeesPct,
+      insurance, saleCostPct, holdCost, numDraws, basis,
     },
     totalProjectCost: G4, maxLoan: G5, landAdvance: G6, loanFees: G7,
     initialCashAtClosing: G8, capacityLeft: G9, maxReimbPct: G10,
@@ -231,7 +230,7 @@ function computeDeal(deal, params) {
     landAdvReceiptDate: G17, firstReimbDate: G18, holdingMonths: G19,
     profit: G20, margin: G21, breakEven: G22, roiPeak: G23,
     roiAfterLandReimb: G24, roiAvgCapital: G25, headlineROI: G26,
-    annualizedROI: G27, loanFeeBasis: G28,
+    annualizedROI: G27, loanFeeBasis: G28, peakWithFloat: G30,
     drawRows, months, sensitivity, drawPctCheck, budgetCheck,
   };
 }

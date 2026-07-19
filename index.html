@@ -26,14 +26,19 @@
   </header>
 
   <main>
-    <section id="tab-dash" class="tab-panel" data-tab="dash"></section>
+    <section id="tab-calc" class="tab-panel" data-tab="calc"></section>
+    <section id="tab-dash" class="tab-panel" data-tab="dash" hidden></section>
     <section id="tab-deals" class="tab-panel" data-tab="deals" hidden></section>
     <section id="tab-master" class="tab-panel" data-tab="master" hidden></section>
     <section id="tab-config" class="tab-panel" data-tab="config" hidden></section>
   </main>
 
   <nav class="tab-bar" role="tablist" aria-label="Seções">
-    <button class="tab-btn active" role="tab" aria-selected="true" data-target="dash">
+    <button class="tab-btn active" role="tab" aria-selected="true" data-target="calc">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <span>Calculadora</span>
+    </button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-target="dash">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
       <span>Dashboard</span>
     </button>

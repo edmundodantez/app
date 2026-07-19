@@ -1,18 +1,24 @@
 # InvestCalc — Real Estate Cashflow (PWA)
 
-Web app para iPhone baseado na planilha **Edmundo_Cashflow.xlsx** (Real Estate
-Multi-Deal Cashflow Model). Sem dependências, sem build — HTML, CSS e
-JavaScript puros.
+Web app para iPhone baseado nas planilhas **Single_Deal_Analyzer2.xlsx**
+(lógica do deal) e **Edmundo_Cashflow.xlsx** (portfólio multi-deal). Sem
+dependências, sem build — HTML, CSS e JavaScript puros.
 
 ## O que ele faz
 
-Reproduz o modelo da planilha, célula por célula:
+Reproduz o modelo das planilhas, célula por célula:
+
+- **Calculadora** — análise avulsa de um deal (a Single Deal Analyzer): faça a
+  conta sem sujar o portfólio; só entra no cashflow se você tocar em "Salvar
+  no cashflow". A última análise fica guardada no aparelho.
 
 - **Deals** — cada deal tem os mesmos inputs da planilha: preço do terreno,
   orçamento de construção, preço de venda esperado, datas (closing, início da
   obra, venda/refi), tipo de financiamento (Construction Loan ou Cash), land
-  advance no closing ou com atraso, LTC, juros, fees, cronograma de até 10
-  draws com % e datas (incluindo valores e datas fixados manualmente).
+  advance no closing ou com atraso, LTC, juros, loan fees all-in (5% padrão,
+  cobrindo origination + docs + underwriting + appraisal) mais seguro à parte,
+  cronograma de até 10 draws com % e datas (incluindo valores e datas fixados
+  manualmente) e o KPI "Peak Exposure incl. Draw Float" do modelo novo.
 - **KPIs por deal** — lucro projetado, ROI headline (na base escolhida: peak
   cash, após land reimbursement ou capital médio), ROI anualizado, pico de
   exposição de caixa, capital médio, juros totais, break-even, margem,
