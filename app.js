@@ -1,5 +1,5 @@
 'use strict';
-/* global Model, Seed */
+/* global Model, Seed, Pdf */
 
 /* ===== Estado ===== */
 const STORE_KEY = 'investcalc-re-v1';
@@ -492,49 +492,73 @@ function renderDealDetail(el, deal) {
 }
 
 /* =====================================================
-   Compartilhar análise (Web Share API → AirDrop, Mail, etc.)
+   Compartilhar análise em PDF (Web Share API → AirDrop, Mail, etc.)
 ===================================================== */
-function buildShareSummary(deal, r) {
-  const L = [];
+function buildAnalysisDoc(deal, r) {
   const pct = (v) => fmtPct1.format(v);
-  L.push('InvestCalc — Análise de deal');
-  L.push(deal.name || '(sem nome)');
-  L.push('Gerada em ' + fmtDateFull.format(new Date()));
-  L.push('');
-  L.push('PREMISSAS');
-  L.push('Terreno: ' + money(deal.land || 0));
-  L.push('Construção: ' + money(deal.constr || 0));
-  L.push('Venda esperada: ' + money(deal.sale || 0));
-  L.push('Financiamento: ' + (r.cash ? 'Cash (recursos próprios)'
-    : `Construction Loan (LTC ${pct(r.resolved.ltc)}, juros ${pct(r.resolved.rate)} a.a., fees ${pct(r.resolved.loanFeesPct)} all-in)`));
+  const sign = (v) => (v > 0 ? 'good' : v < 0 ? 'bad' : undefined);
+  const basisLabel = deal.basis === 'Peak Cash' ? 'peak cash'
+    : deal.basis === 'Average Capital Deployed' ? 'capital médio' : 'após land reimb.';
+
+  const premissas = [
+    ['Preço do terreno', money(deal.land || 0)],
+    ['Orçamento de construção', money(deal.constr || 0)],
+    ['Preço de venda esperado', money(deal.sale || 0)],
+    ['Financiamento', r.cash ? 'Cash (recursos próprios)'
+      : `Construction Loan — LTC ${pct(r.resolved.ltc)} · juros ${pct(r.resolved.rate)} a.a. · fees ${pct(r.resolved.loanFeesPct)} all-in`],
+    ['Datas', `closing ${dateLabel(Model.parseDate(deal.closing))} · obra ${dateLabel(Model.parseDate(deal.constrStart))} · venda ${dateLabel(Model.parseDate(deal.saleDate))}`],
+    ['Período / custos de venda', `${r.holdingMonths} meses · ${pct(r.resolved.saleCostPct)} na venda`],
+  ];
   if (!r.cash && deal.advTiming === 'Delayed') {
-    L.push(`Land advance com atraso de ${deal.advDelayMo || 0} mês(es)`);
+    premissas.push(['Land advance', `com atraso de ${deal.advDelayMo || 0} mês(es)`]);
   }
-  L.push(`Datas: closing ${dateLabel(Model.parseDate(deal.closing))} · obra ${dateLabel(Model.parseDate(deal.constrStart))} · venda ${dateLabel(Model.parseDate(deal.saleDate))}`);
-  L.push(`Período: ${r.holdingMonths} meses · Custos de venda: ${pct(r.resolved.saleCostPct)}`);
-  L.push('');
-  L.push('RESULTADOS');
-  L.push('Lucro projetado: ' + money(r.profit));
-  L.push(`ROI (${deal.basis === 'Peak Cash' ? 'peak cash' : deal.basis === 'Average Capital Deployed' ? 'capital médio' : 'após land reimb.'}): ` + pct(r.headlineROI));
-  L.push('ROI anualizado: ' + pct(r.annualizedROI));
-  L.push('Margem sobre a venda: ' + pct(r.margin));
-  L.push('Pico de caixa próprio: ' + money(r.peakExposure));
+
+  const resultados = [
+    ['Lucro projetado', money(r.profit), sign(r.profit)],
+    [`ROI (${basisLabel})`, pct(r.headlineROI), sign(r.headlineROI)],
+    ['ROI anualizado', pct(r.annualizedROI), sign(r.annualizedROI)],
+    ['Margem sobre a venda', pct(r.margin), sign(r.margin)],
+    ['Pico de caixa próprio', money(r.peakExposure)],
+  ];
   if (!r.cash) {
-    L.push('Pico incl. draw float: ' + money(r.peakWithFloat));
-    L.push('Land advance: ' + money(r.landAdvance));
-    L.push('Fees no closing: ' + money(r.loanFees));
-    L.push('Juros totais: ' + money(r.totalInterest));
+    resultados.push(
+      ['Pico incl. draw float (pior caso)', money(r.peakWithFloat)],
+      ['Land advance', money(r.landAdvance)],
+      ['Fees no closing', money(r.loanFees)],
+      ['Juros totais (interest-only)', money(r.totalInterest)],
+    );
   }
-  L.push('Caixa necessário no closing: ' + money(r.initialCashAtClosing));
-  L.push('Capital médio investido: ' + money(r.avgCapital));
-  L.push('Break-even (venda): ' + money(r.breakEven));
-  L.push('');
-  L.push('SENSIBILIDADE DO PREÇO DE VENDA');
-  for (const s of r.sensitivity) {
-    const tag = s.scenario === 0 ? 'Base' : (s.scenario > 0 ? '+' : '') + fmtNum.format(s.scenario * 100) + '%';
-    L.push(`${tag}: ${money(s.price)} → lucro ${money(s.profit)} (ROI ${pct(s.roi)})`);
-  }
-  return L.join('\n');
+  resultados.push(
+    ['Caixa necessário no closing', money(r.initialCashAtClosing)],
+    ['Capital médio investido', money(r.avgCapital)],
+    ['Break-even (preço de venda)', money(r.breakEven)],
+  );
+
+  return {
+    title: deal.name || '(sem nome)',
+    subtitle: `InvestCalc — Análise de deal · gerada em ${fmtDateFull.format(new Date())}`,
+    sections: [
+      { heading: 'Premissas', rows: premissas },
+      { heading: 'Resultados', rows: resultados },
+    ],
+    table: {
+      heading: 'Sensibilidade do preço de venda',
+      cols: [
+        { label: 'Cenário', x: 54 },
+        { label: 'Preço', x: 160 },
+        { label: 'Lucro', x: 300 },
+        { label: 'ROI', x: 460 },
+      ],
+      rows: r.sensitivity.map((s) => [
+        s.scenario === 0 ? 'Base' : (s.scenario > 0 ? '+' : '') + fmtNum.format(s.scenario * 100) + '%',
+        money(s.price),
+        [money(s.profit), sign(s.profit)],
+        [fmtPct1.format(s.roi), sign(s.roi)],
+      ]),
+      strongRow: r.sensitivity.findIndex((s) => s.scenario === 0),
+    },
+    footer: 'Juros mantidos no cenário base na sensibilidade (efeito só do preço). Gerado pelo InvestCalc.',
+  };
 }
 
 async function shareAnalysis(deal) {
@@ -543,18 +567,25 @@ async function shareAnalysis(deal) {
     alert('Complete a análise antes de compartilhar (status Ativo e datas de closing e venda).');
     return;
   }
-  const text = buildShareSummary(deal, r);
-  const title = 'Análise — ' + (deal.name || 'deal');
-  if (navigator.share) {
-    try { await navigator.share({ title, text }); return; }
-    catch (e) { if (e && e.name === 'AbortError') return; /* cancelado pelo usuário */ }
+  const bytes = Pdf.analysisPdf(buildAnalysisDoc(deal, r));
+  const slug = (deal.name || 'deal').toLowerCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'deal';
+  const filename = 'analise-' + slug + '.pdf';
+  const file = new File([bytes], filename, { type: 'application/pdf' });
+
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: 'Análise — ' + (deal.name || 'deal') });
+      return;
+    } catch (e) { if (e && e.name === 'AbortError') return; /* cancelado pelo usuário */ }
   }
-  try {
-    await navigator.clipboard.writeText(text);
-    alert('Resumo copiado para a área de transferência.');
-  } catch {
-    prompt('Copie o resumo:', text);
-  }
+  // sem folha de compartilhamento (ex.: computador): baixa o PDF
+  const url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 /* =====================================================
@@ -572,7 +603,7 @@ function renderCalc() {
         <button class="mini-btn" id="calc-add">+ Salvar no cashflow</button>
         <button class="mini-btn" id="calc-share">
           <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M12 3l-4 4M12 3l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          Compartilhar
+          Compartilhar PDF
         </button>
         <button class="mini-btn danger" id="calc-clear">Limpar</button>
       </div>
