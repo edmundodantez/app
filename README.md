@@ -11,9 +11,10 @@ Reproduz o modelo das planilhas, célula por célula:
 - **Calculadora** — análise avulsa de um deal (a Single Deal Analyzer): faça a
   conta sem sujar o portfólio; só entra no cashflow se você tocar em "Salvar
   no cashflow". A última análise fica guardada no aparelho. O botão
-  **Compartilhar** gera um resumo em texto (premissas, resultados e
-  sensibilidade) e abre a folha nativa do iPhone — AirDrop, Mail, WhatsApp
-  etc. (em navegadores sem Web Share, copia para a área de transferência).
+  **Compartilhar** gera um **PDF de uma página** com premissas, resultados e
+  sensibilidade (`pdfgen.js`, gerador próprio sem dependências) e abre a folha
+  nativa do iPhone — AirDrop, Mail, WhatsApp etc. Em navegadores sem
+  compartilhamento de arquivos, o PDF é baixado.
 
 - **Deals** — cada deal tem os mesmos inputs da planilha: preço do terreno,
   orçamento de construção, preço de venda esperado, datas (closing, início da
@@ -39,6 +40,7 @@ ao centavo):
 
 ```bash
 node test/model.test.js
+node test/pdf.test.js
 ```
 
 Os dados ficam no aparelho (localStorage) e o app funciona offline após o
