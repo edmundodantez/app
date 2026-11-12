@@ -19,6 +19,20 @@ function migrate(s) {
   if (!s.calc) s.calc = freshCalcDeal();
   // dados de investidores (imóveis ofertados, clientes, empréstimos de credores)
   for (const k of ['properties', 'clients', 'loans']) if (!Array.isArray(s[k])) s[k] = [];
+  // imóveis antigos só tinham o cronograma: deriva dele o plano do investimento
+  for (const p of s.properties) {
+    if (p.landPrice !== undefined) continue;
+    const sum = (f) => (p.payments || []).reduce((t, y) => t + (f(y) ? Number(y.amount) || 0 : 0), 0);
+    const first = (f) => ((p.payments || []).find(f) || {}).dueDate || null;
+    Object.assign(p, {
+      landPrice: sum((y) => y.kind === 'land') || null,
+      constrBudget: sum((y) => y.kind === 'draw') || null,
+      otherCosts: sum((y) => y.kind !== 'land' && y.kind !== 'draw') || null,
+      constrPerSqft: null, lotSize: p.lotSize || '',
+      landDate: first((y) => y.kind === 'land'), constrStart: first((y) => y.kind === 'draw'),
+      numDraws: (p.payments || []).filter((y) => y.kind === 'draw').length || 7,
+    });
+  }
   if (!s.profile) s.profile = { company: '', contact: '' };
   return s;
 }

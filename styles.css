@@ -758,3 +758,5 @@ th { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
 @media (min-width: 900px) {
   .brand-name { white-space: normal; line-height: 1.15; font-size: 0.98rem; }
 }
+.plan-line { margin: 10px 0 0; font-size: 0.86rem; color: var(--text-secondary); background: var(--accent-soft); border-radius: 10px; padding: 9px 12px; line-height: 1.45; }
+.plan-line b { color: var(--text-primary); }

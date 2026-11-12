@@ -15,7 +15,7 @@ const T = {
     locale: 'en-US',
     opportunity: 'Investment opportunity', available: 'Available investments', statement: 'Investor statement',
     generated: 'generated on', asOf: 'as of',
-    location: 'Location', details: 'Details', builder: 'Builder', beds: 'bed', baths: 'bath', sqft: 'sq ft',
+    location: 'Location', details: 'Details', builder: 'Builder', beds: 'bed', baths: 'bath', sqft: 'sq ft', lot: 'lot', perSqft: 'per sq ft', salePerSqft: 'Estimated sale price per sq ft',
     estSaleDate: 'Estimated sale date', saleDate: 'Sale date', purchaseDate: 'Purchase date',
     investment: 'Investment summary', totalInvestment: 'Total investment', estSalePrice: 'Estimated sale price',
     salePrice: 'Sale price', estProfit: 'Estimated net profit', profit: 'Net profit', estRoi: 'Estimated return',
@@ -45,7 +45,7 @@ const T = {
     locale: 'pt-BR',
     opportunity: 'Oportunidade de investimento', available: 'Investimentos disponíveis', statement: 'Extrato do investidor',
     generated: 'gerado em', asOf: 'posição em',
-    location: 'Localização', details: 'Detalhes', builder: 'Construtor', beds: 'quartos', baths: 'banheiros', sqft: 'sq ft',
+    location: 'Localização', details: 'Detalhes', builder: 'Construtor', beds: 'quartos', baths: 'banheiros', sqft: 'sq ft', lot: 'lote', perSqft: 'por sq ft', salePerSqft: 'Preço de venda estimado por sq ft',
     estSaleDate: 'Data estimada de venda', saleDate: 'Data da venda', purchaseDate: 'Data da compra',
     investment: 'Resumo do investimento', totalInvestment: 'Investimento total', estSalePrice: 'Preço de venda estimado',
     salePrice: 'Preço de venda', estProfit: 'Lucro líquido estimado', profit: 'Lucro líquido', estRoi: 'Retorno estimado',
@@ -103,6 +103,7 @@ function detailsLine(p, F) {
   if (p.beds) parts.push(`${F.num(p.beds)} ${F.L.beds}`);
   if (p.baths) parts.push(`${F.num(p.baths)} ${F.L.baths}`);
   if (p.sqft) parts.push(`${new Intl.NumberFormat(F.L.locale).format(p.sqft)} ${F.L.sqft}`);
+  if (p.lotSize) parts.push(`${F.L.lot} ${p.lotSize}`);
   return parts.join(' · ');
 }
 const locationLine = (p) => [p.address, p.city].filter(Boolean).join(', ');
@@ -127,11 +128,13 @@ function offeringBlocks(p, r, F) {
   ] });
   const rows = [];
   if (r.landCost) rows.push([L.land, F.money(r.landCost)]);
-  if (r.constrCost) rows.push([L.construction, F.money(r.constrCost)]);
+  if (r.constrCost) rows.push([L.construction, F.money(r.constrCost)
+    + (r.constrPerSqft != null ? ` (${F.money(r.constrPerSqft)} ${L.perSqft})` : '')]);
   if (r.otherCost) rows.push([L.other, F.money(r.otherCost)]);
   if (r.hasSale) {
     rows.push([`${L.saleCosts} (${F.pct2(r.saleCostPct)})`, F.money(r.saleCosts)]);
     rows.push([L.estNetProceeds, F.money(r.netSale)]);
+    if (r.salePerSqft != null) rows.push([L.salePerSqft, F.money(r.salePerSqft)]);
     if (r.months != null) rows.push([L.holding, `${F.num(r.months)} ${L.months}`]);
     if (r.annualized != null) rows.push([L.estAnnualized, F.pct(r.annualized), sign(r.annualized)]);
   }
@@ -164,8 +167,10 @@ function propertyDoc(p, lang, profile) {
   const F = fmt(lang), L = F.L;
   const r = Inv.computeProperty(p);
   const blocks = offeringBlocks(p, r, F);
-  blocks.push({ type: 'heading', text: L.schedule });
-  blocks.push(scheduleTable(p, F, false));
+  if (r.hasSchedule) {
+    blocks.push({ type: 'heading', text: L.schedule });
+    blocks.push(scheduleTable(p, F, false));
+  }
   blocks.push({ type: 'text', text: L.disclaimer, size: 8, color: 'muted' });
   return {
     title: p.name || L.property,

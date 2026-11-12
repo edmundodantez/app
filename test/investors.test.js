@@ -54,6 +54,31 @@ check('8 parcelas', avail.payments.length === 8);
 check('dia 31 cai no fim do mês curto', avail.payments[3].dueDate === '2026-09-30');
 near('draws somam a obra', r.constrCost, 264000);
 
+/* ---- plano do investimento (terreno + sq ft × $/sq ft + outros) ---- */
+const planned = Inv.makeProperty({ id: 'p3', name: 'Plan', landPrice: 80000, sqft: 1650, constrPerSqft: 160, otherCosts: 5000,
+  estSalePrice: 440000, saleCostPct: 0.08, landDate: '2026-06-30', constrStart: '2026-07-15', numDraws: 7 });
+r = Inv.computeProperty(planned, '2026-06-01');
+near('plano: construção = sq ft × preço', r.constrCost, 264000);
+near('plano: investimento total', r.totalCost, 349000);
+near('plano: lucro', r.profit, 440000 * 0.92 - 349000);
+check('plano: sem cronograma', !r.hasSchedule && r.status === 'available' && r.scheduleDiff === 0);
+near('plano: venda por sq ft', r.salePerSqft, 440000 / 1650, 0.01);
+check('plano: casa com cliente pelo custo planejado', Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 350000 }))
+  && !Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 340000 })));
+near('plano: orçamento fixo vale mais que sq ft', Inv.computeProperty(Object.assign({}, planned, { constrBudget: 300000 })).constrCost, 300000);
+const STD = [[0.05, 0], [0.15, 4], [0.15, 5], [0.20, 6], [0.20, 7], [0.15, 8], [0.10, 9]].map(([pct, offset], i) => ({ desc: 'Etapa ' + (i + 1), pct, offset }));
+let sched = Inv.planSchedule(planned, STD);
+check('cronograma: terreno + outros + 7 draws', sched.length === 9 && sched[0].kind === 'land' && sched[1].kind === 'other');
+near('cronograma: soma o plano', sched.reduce((s, x) => s + x.amount, 0), 349000);
+check('cronograma: usa etapas padrão', sched[2].desc === 'Etapa 1' && sched[2].amount === 13200 && sched[3].dueDate === '2026-11-15');
+r = Inv.computeProperty(Object.assign({}, planned, { payments: sched }), '2026-06-01');
+check('cronograma: bate com o plano e calcula anualizado', r.hasSchedule && r.scheduleDiff === 0 && r.annualized == null);
+sched = Inv.planSchedule(Object.assign({}, planned, { numDraws: 4 }), STD);
+check('cronograma: outro nº de draws → iguais por mês', sched.filter((x) => x.kind === 'draw').length === 4
+  && sched[2].amount === 66000 && sched[5].dueDate === '2026-10-15');
+r = Inv.computeProperty(Object.assign({}, planned, { payments: sched, landPrice: 90000 }), '2026-06-01');
+near('cronograma diferente do plano é sinalizado', r.scheduleDiff, -10000);
+
 /* ---- empréstimo com amortização ---- */
 const loan = Inv.makeLoan({ id: 'l1', clientId: 'c2', label: 'Loan A', rate: 0.12, entries: [
   { id: 'e2', date: '2026-04-01', type: 'principal', amount: 40000 },
@@ -94,7 +119,8 @@ near('visão geral: principal', O.principal, 60000);
 /* ---- PDFs ---- */
 const profile = { company: 'Dantez Homes', contact: '(555) 010-0100' };
 const docs = {
-  oferta: Reports.propertyDoc(Object.assign({}, avail, { description: 'Casa nova de 3 quartos. '.repeat(20), beds: 3, baths: 2, sqft: 1650 }), 'en', profile),
+  oferta: Reports.propertyDoc(Object.assign({}, avail, { description: 'Casa nova de 3 quartos. '.repeat(20), beds: 3, baths: 2, sqft: 1650, lotSize: '0.25 acre' }), 'en', profile),
+  ofertaPlano: Reports.propertyDoc(planned, 'pt', profile),
   disponiveis: Reports.availableDoc([prop, avail], 'pt', profile),
   extratoPt: Reports.statementDoc(investor, [prop, sold, avail], [loan], profile, '2026-06-01'),
   extratoEn: Reports.statementDoc(lender, [prop], [Object.assign({}, loan, {
