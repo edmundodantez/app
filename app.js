@@ -1,5 +1,5 @@
 'use strict';
-/* global Model, Seed, Pdf, Cloud, renderInvestors */
+/* global Model, Seed, Pdf, Cloud, Investors, renderInvestors, invNav */
 
 /* ===== Estado ===== */
 const STORE_KEY = 'investcalc-re-v1';
@@ -109,9 +109,38 @@ document.querySelectorAll('.tab-btn').forEach((btn) => {
     });
     document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = p.dataset.tab !== btn.dataset.target; });
     hideTooltip();
+    updateChrome(btn.dataset.target);
     renderTab(btn.dataset.target);
+    window.scrollTo(0, 0);
   });
 });
+const goTab = (tab) => document.querySelector(`.tab-btn[data-target="${tab}"]`).click();
+document.querySelectorAll('.cloud-pill').forEach((b) => b.addEventListener('click', () => goTab('config')));
+
+/* ===== Moldura: título da página e marca ===== */
+const PAGE_TITLES = {
+  dash: 'Início', inv: 'Clientes e imóveis', deals: 'Deals', master: 'Cashflow',
+  calc: 'Calculadora', config: 'Ajustes',
+};
+const PAGE_SUBS = {
+  inv: 'Imóveis para ofertar, investidores e credores',
+  deals: 'Seus projetos e o modelo de cada um',
+  master: 'Caixa consolidado de todos os deals ativos',
+  calc: 'Análise avulsa de um deal',
+  config: 'Parâmetros, PDFs, nuvem e backup',
+};
+const fmtDateLong = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+function updateChrome(tab) {
+  const t = tab || (document.querySelector('.tab-btn.active') || {}).dataset?.target || 'dash';
+  const company = (state.profile && state.profile.company) || 'InvestCalc';
+  document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = company; });
+  const h = new Date().getHours();
+  const hello = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
+  document.getElementById('page-title').textContent = t === 'dash' ? hello : PAGE_TITLES[t];
+  const today = fmtDateLong.format(new Date());
+  document.getElementById('page-sub').textContent = t === 'dash'
+    ? today.charAt(0).toUpperCase() + today.slice(1) : PAGE_SUBS[t];
+}
 
 function renderTab(tab) {
   if (tab === 'calc') renderCalc();
@@ -161,7 +190,7 @@ function renderLineChart(holder, legendEl, series, dates) {
   }
   const xEvery = Math.max(1, Math.ceil(n / 6));
   for (let i = 0; i < n; i += xEvery) {
-    svg += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="${mutedColor}" font-family="system-ui,sans-serif">${monthLabel(dates[i])}</text>`;
+    svg += `<text x="${x(i)}" y="${H - 8}" text-anchor="${i === 0 ? 'start' : 'middle'}" font-size="10" fill="${mutedColor}" font-family="system-ui,sans-serif">${monthLabel(dates[i])}</text>`;
   }
   for (const s of series) {
     let d = '';
@@ -232,61 +261,142 @@ function pnlPct(v) {
   return `<span class="${cls}">${fmtPct1.format(v)}</span>`;
 }
 
+const ICONS = {
+  profit: '<path d="M3 17l6-6 4 4 8-8M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  cash: '<rect x="3" y="6" width="18" height="12" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/>',
+  people: '<circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 5.2a3.2 3.2 0 0 1 0 5.6M17.5 14.3c2 .8 3.5 2.8 3.5 5.700" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+  bank: '<path d="M3 10l9-6 9 6M5 10v8M9.500 10v8M14.500 10v8M19 10v8M3 20h18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>',
+  warn: '<path d="M12 4l9 16H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 10v4M12 17h.01" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>',
+};
+const icon = (name) => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[name]}</svg>`;
+function kpi(ic, label, value, sub) {
+  return `<div class="kpi"><span class="kpi-icon">${icon(ic)}</span>
+    <span class="kpi-label">${esc(label)}</span><span class="kpi-value">${value}</span>
+    <span class="kpi-sub">${sub}</span></div>`;
+}
+
 function renderDashboard() {
   const el = document.getElementById('tab-dash');
   const d = Model.computeDashboard(state.deals, state.params);
+  const today = Investors.todayIso();
+  const O = Investors.overview(state.properties, state.clients, state.loans, today);
+  const nameOf = (id) => { const c = state.clients.find((x) => x.id === id); return c ? (c.name || '(sem nome)') : ''; };
+  const dayLabel = (iso) => dateLabel(Investors.parseDate(iso));
+
+  // próximos pagamentos de clientes (terreno e draws ainda não pagos), vencidos primeiro
+  const due = [];
+  for (const p of state.properties) {
+    if (!p.clientId || (p.soldDate && p.soldPrice)) continue;
+    for (const x of p.payments || []) {
+      if (!x.paidDate && x.dueDate && Number(x.amount) > 0) due.push({ p, x, late: x.dueDate < today });
+    }
+  }
+  due.sort((a, b) => a.x.dueDate.localeCompare(b.x.dueDate));
+  const loans = state.loans.map((l) => ({ l, r: Investors.computeLoan(l, today) })).filter((x) => x.r.rows.length);
+  const months = d.master.months;
 
   const shortfall = d.lowestBalance < 0
-    ? `<div class="warn-box">⚠️ O caixa projetado fica <b>negativo</b> (mínimo de <b>${money(d.lowestBalance)}</b>).
-       Com ${money(d.startingCash)} iniciais, faltam <b>${money(-d.lowestBalance)}</b> no pior mês.</div>`
+    ? `<div class="warn-box">${icon('warn')}<span>O caixa projetado fica <b>negativo</b> (mínimo de <b>${money(d.lowestBalance)}</b>).
+       Com ${money(d.startingCash)} iniciais, faltam <b>${money(-d.lowestBalance)}</b> no pior mês.</span></div>`
     : '';
 
   el.innerHTML = `
-    <div class="card">
-      <h2>Portfólio</h2>
-      ${shortfall}
-      <div class="stat-row">
-        <div class="stat-tile"><span class="stat-label">Lucro total projetado</span><span class="stat-value">${pnl(d.totalProfit)}</span></div>
-        <div class="stat-tile"><span class="stat-label">Pico de exposição de caixa</span><span class="stat-value">${money(d.peakExposure)}</span></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-tile small"><span class="stat-label">Caixa inicial</span><span class="stat-value">${money(d.startingCash)}</span></div>
-        <div class="stat-tile small"><span class="stat-label">Deals ativos</span><span class="stat-value">${d.activeDeals}</span></div>
-        <div class="stat-tile small"><span class="stat-label">Menor saldo</span><span class="stat-value">${pnl(d.lowestBalance)}</span></div>
-      </div>
-      <div class="stat-row">
-        <div class="stat-tile small"><span class="stat-label">Custo dos projetos</span><span class="stat-value">${money(d.totalProjectCost)}</span></div>
-        <div class="stat-tile small"><span class="stat-label">Juros totais</span><span class="stat-value">${money(d.totalInterest)}</span></div>
-        <div class="stat-tile small"><span class="stat-label">ROI s/ pico</span><span class="stat-value">${pnlPct(d.roiPeak)}</span></div>
-      </div>
+    <div class="quick-row">
+      <button class="mini-btn primary" data-quick="prop">+ Imóvel</button>
+      <button class="mini-btn" data-quick="client">+ Cliente</button>
+      <button class="mini-btn" data-quick="calc">Analisar deal</button>
     </div>
-    <div class="card">
-      <h2>Deals</h2>
-      <div class="table-wrap"><table>
-        <thead><tr><th>Deal</th><th>Lucro</th><th>ROI</th><th>Venda</th></tr></thead>
-        <tbody>
-          ${state.deals.map((deal, i) => {
-            const r = d.master.results[i];
-            return `<tr class="row-link" data-deal="${esc(deal.id)}">
-              <td>${statusDot(deal.status)} ${esc(deal.name || '(sem nome)')}</td>
-              <td>${deal.status === 'Active' ? pnl(r.profit) : '—'}</td>
-              <td>${deal.status === 'Active' ? pnlPct(r.headlineROI) : '—'}</td>
-              <td>${deal.saleDate ? monthLabel(Model.parseDate(deal.saleDate)) : '—'}</td>
-            </tr>`;
-          }).join('')}
-        </tbody>
-      </table></div>
-      <p class="hint">Toque em um deal para abrir. Lucro e ROI vêm do modelo de cada deal (ROI na base configurada).</p>
+    ${shortfall}
+    <div class="kpi-grid">
+      ${kpi('profit', 'Lucro projetado dos deals', pnl(d.totalProfit), `${d.activeDeals} deal(s) ativo(s) · ROI ${fmtPct1.format(d.roiPeak)} s/ pico`)}
+      ${kpi('cash', 'Menor saldo de caixa', pnl(d.lowestBalance), `Caixa inicial ${money(d.startingCash)}`)}
+      ${kpi('people', 'Capital de clientes em obras', money(O.clientCapitalPaid), `${O.active} imóvel(is) com cliente · ${O.available} disponível(is)`)}
+      ${kpi('bank', 'Devo a credores', money(O.principal), `Juros a pagar hoje ${money(O.interestDue)}`)}
+    </div>
+    <div class="dash-grid">
+      <div class="card span-2">
+        <div class="card-head"><div><h2>Caixa projetado</h2>
+          <p class="hint">Saldo mês a mês de todos os deals ativos. Abaixo de zero falta caixa.</p></div>
+          <button class="mini-btn" data-go="master">Ver cashflow</button></div>
+        ${months.length ? '<div class="viz-root"><div class="chart-holder" id="dash-chart"></div></div>'
+          : '<p class="empty">Nenhum deal ativo com datas preenchidas.</p>'}
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Próximos pagamentos</h2>
+          <button class="mini-btn" data-go="inv">Ver imóveis</button></div>
+        ${due.length ? `<div class="rows">${due.slice(0, 6).map(({ p, x, late }) => `
+          <button class="row-item" data-prop="${esc(p.id)}">
+            <span class="row-main"><b>${esc(x.desc || 'Pagamento')}</b>
+              <small>${esc(p.name || '(sem nome)')} · ${esc(nameOf(p.clientId))}</small></span>
+            <span class="row-side"><b>${money(Number(x.amount))}</b>
+              <small>${late ? `<span class="badge late">${icon('warn')}Atrasado</span> ` : ''}${dayLabel(x.dueDate)}</small></span>
+          </button>`).join('')}</div>
+          ${due.length > 6 ? `<p class="hint">+ ${due.length - 6} outro(s) pagamento(s) em aberto.</p>` : ''}`
+          : '<p class="empty">Nenhum pagamento de cliente em aberto.</p>'}
+      </div>
+      <div class="card span-2">
+        <div class="card-head"><h2>Deals</h2><button class="mini-btn" data-go="deals">Ver todos</button></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>Deal</th><th>Lucro</th><th>ROI</th><th>Venda</th></tr></thead>
+          <tbody>
+            ${state.deals.map((deal, i) => {
+              const r = d.master.results[i];
+              return `<tr class="row-link" data-deal="${esc(deal.id)}">
+                <td>${statusDot(deal.status)} ${esc(deal.name || '(sem nome)')}</td>
+                <td>${deal.status === 'Active' ? pnl(r.profit) : '—'}</td>
+                <td>${deal.status === 'Active' ? pnlPct(r.headlineROI) : '—'}</td>
+                <td>${deal.saleDate ? monthLabel(Model.parseDate(deal.saleDate)) : '—'}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table></div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Credores</h2><button class="mini-btn" data-go="inv" data-seg="clients">Ver clientes</button></div>
+        ${loans.length ? `<div class="rows">${loans.map(({ l, r }) => `
+          <button class="row-item" data-loan="${esc(l.id)}" data-client="${esc(l.clientId)}">
+            <span class="row-main"><b>${esc(nameOf(l.clientId) || 'Credor')}</b>
+              <small>${esc(l.label || 'Empréstimo')} · ${fmtPct2.format(r.rate)} a.a.</small></span>
+            <span class="row-side"><b>${money(r.principal)}</b><small>juros ${money(r.interestDue)}</small></span>
+          </button>`).join('')}</div>
+          <p class="hint">Juros de aproximadamente ${money(O.monthlyInterest)} por mês no saldo atual.</p>`
+          : '<p class="empty">Nenhum empréstimo lançado.</p>'}
+        <div class="mini-stats">
+          <span><b>${O.looking}</b> cliente(s) procurando</span>
+          <span><b>${O.available}</b> imóvel(is) disponível(is)</span>
+          <span><b>${O.sold}</b> vendido(s)</span>
+        </div>
+      </div>
     </div>`;
 
-  el.querySelectorAll('.row-link').forEach((tr) => {
-    tr.addEventListener('click', () => openDeal(tr.dataset.deal));
-  });
+  if (months.length) {
+    renderLineChart(el.querySelector('#dash-chart'), null,
+      [{ name: 'Saldo de caixa projetado', color: cssVar('--series-1'), values: months.map((m) => m.balance) }],
+      months.map((m) => m.start));
+  }
+  const openInv = (nav) => { Object.assign(invNav, { propId: null, clientId: null, loanId: null }, nav); goTab('inv'); };
+  el.querySelectorAll('.row-link').forEach((tr) => tr.addEventListener('click', () => openDeal(tr.dataset.deal)));
+  el.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.go === 'inv') openInv({ seg: b.dataset.seg || 'props' }); else goTab(b.dataset.go);
+  }));
+  el.querySelectorAll('[data-prop]').forEach((b) => b.addEventListener('click', () => openInv({ seg: 'props', propId: b.dataset.prop })));
+  el.querySelectorAll('[data-loan]').forEach((b) => b.addEventListener('click', () =>
+    openInv({ seg: 'clients', clientId: b.dataset.client, loanId: b.dataset.loan })));
+  el.querySelectorAll('[data-quick]').forEach((b) => b.addEventListener('click', () => {
+    if (b.dataset.quick === 'calc') { goTab('calc'); return; }
+    if (b.dataset.quick === 'prop') {
+      const p = Investors.makeProperty({ name: 'Novo imóvel', saleCostPct: state.params.saleCostPct });
+      state.properties.push(p); save(); openInv({ seg: 'props', propId: p.id });
+    } else {
+      const c = Investors.makeClient({ name: 'Novo cliente' });
+      state.clients.push(c); save(); openInv({ seg: 'clients', clientId: c.id });
+    }
+  }));
 }
 
 function openDeal(id) {
   currentDealId = id;
-  document.querySelector('.tab-btn[data-target="deals"]').click();
+  goTab('deals');
 }
 
 /* =====================================================
@@ -305,7 +415,7 @@ function renderDealList(el) {
     <div class="card">
       <div class="row-between">
         <h2>Deals</h2>
-        <button class="mini-btn" id="add-deal">+ Novo deal</button>
+        <button class="mini-btn primary" id="add-deal">+ Novo deal</button>
       </div>
       <div class="deal-list">
         ${state.deals.map((deal, i) => {
@@ -662,7 +772,7 @@ function renderCalc() {
       <p class="hint">Analise um deal avulso. Nada daqui entra no Dashboard nem no Cashflow —
         só se você tocar em <b>Salvar no cashflow</b>, que copia esta análise para a lista de deals.</p>
       <div class="row-gap wrap" style="margin-bottom:4px">
-        <button class="mini-btn" id="calc-add">+ Salvar no cashflow</button>
+        <button class="mini-btn primary" id="calc-add">+ Salvar no cashflow</button>
         <button class="mini-btn" id="calc-share">
           <svg class="btn-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M12 3l-4 4M12 3l4 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 11v8a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Compartilhar PDF
@@ -936,7 +1046,7 @@ function renderConfig() {
 
   if (typeof Cloud !== 'undefined') Cloud.renderCard(el.querySelector('#cloud-card'));
   el.querySelectorAll('[data-prof]').forEach((input) => {
-    input.addEventListener('change', () => { state.profile[input.dataset.prof] = input.value.trim(); save(); });
+    input.addEventListener('change', () => { state.profile[input.dataset.prof] = input.value.trim(); save(); updateChrome(); });
   });
 
   el.querySelectorAll('[data-pk]').forEach((input) => {
@@ -995,7 +1105,8 @@ function renderConfig() {
 /* ===== Início ===== */
 persist();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAllVisible);
-renderCalc();
+updateChrome('dash');
+renderDashboard();
 
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js'));

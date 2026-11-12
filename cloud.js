@@ -295,7 +295,21 @@ function browserCloud() {
     error: ['dot-off', ''],
   };
 
+  const PILL = {
+    off: 'Só local', idle: 'Conectado', syncing: 'Sincronizando…', synced: 'Na nuvem',
+    offline: 'Sem conexão', conflict: 'Conflito', error: 'Erro na nuvem',
+  };
+  function drawPills() {
+    const st = core.getStatus();
+    const on = st.code === 'synced', bad = st.code === 'conflict' || st.code === 'error';
+    document.querySelectorAll('.cloud-pill').forEach((el) => {
+      el.innerHTML = `<span class="dot ${on ? 'dot-on' : bad ? 'dot-bad' : 'dot-off'}"></span>${esc(PILL[st.code] || PILL.error)}`;
+      el.title = 'Nuvem — abrir Ajustes';
+    });
+  }
+
   function draw() {
+    drawPills();
     if (!cardEl || !cardEl.isConnected) return;
     const info = core.getInfo(), st = core.getStatus();
     const [dot, text] = STATUS[st.code] || STATUS.error;
@@ -347,7 +361,7 @@ function browserCloud() {
           <input type="password" id="cloud-pass" autocomplete="current-password"></div></label>
       </div>
       <div class="row-gap wrap" style="margin-top:10px">
-        <button class="mini-btn" id="cloud-in">Entrar</button>
+        <button class="mini-btn primary" id="cloud-in">Entrar</button>
         <button class="mini-btn" id="cloud-up">Criar conta</button>
       </div>
       <details style="margin-top:12px">
@@ -376,6 +390,7 @@ function browserCloud() {
   document.addEventListener('visibilitychange', wake);
   window.addEventListener('focus', wake);
   window.addEventListener('online', wake);
+  drawPills();
   core.sync();
 
   return {

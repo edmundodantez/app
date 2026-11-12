@@ -6,6 +6,13 @@ dependências, sem build — HTML, CSS e JavaScript puros.
 
 ## O que ele faz
 
+No computador o app abre com barra lateral e painel largo; no iPhone, com barra
+superior e abas embaixo. A tela **Início** é o painel geral: lucro projetado,
+menor saldo de caixa, capital de clientes em obras, saldo devido a credores,
+gráfico do caixa projetado, próximos pagamentos de clientes (com os atrasados
+em destaque), deals e credores. O nome da empresa (Ajustes) aparece na barra
+lateral, e um indicador mostra se os dados estão só no aparelho ou na nuvem.
+
 Reproduz o modelo das planilhas, célula por célula:
 
 - **Calculadora** — análise avulsa de um deal (a Single Deal Analyzer): faça a
