@@ -536,11 +536,15 @@ function renderClientResults(holder, c) {
           ${tile('Principal em aberto', money2(S.principal))}
           ${tile('Juros a pagar hoje', money2(S.interestDue))}
         </div>
-        <div class="deal-list">${S.loans.map(({ l, r }) => `<button class="deal-item" data-loan="${esc(l.id)}">
+        <div class="deal-list">${S.loans.map(({ l, r }) => `<div class="deal-item static">
           <span class="deal-item-top"><span class="deal-name">${esc(l.label || 'Empréstimo')}</span>
             <span class="deal-fin">${fmtPct2.format(r.rate)} a.a.</span></span>
           <span class="deal-item-bottom">Principal ${money2(r.principal)} de ${money2(r.advanced)} · juros a pagar ${money2(r.interestDue)}</span>
-        </button>`).join('')}</div>`
+          <span class="row-gap wrap item-actions">
+            <button class="mini-btn" data-loan="${esc(l.id)}">Abrir</button>
+            <button class="mini-btn" data-loan-pdf="${esc(l.id)}">Extrato em PDF</button>
+          </span>
+        </div>`).join('')}</div>`
         : '<p class="hint">Nenhum empréstimo. Crie um para lançar os aportes, as devoluções de principal e os juros pagos.</p>'}
     </div>`;
   }
@@ -560,6 +564,10 @@ function renderClientResults(holder, c) {
     sharePdf(Pdf.reportPdf(Reports.propertyDoc(p, c.lang, state.profile)),
       (c.lang === 'pt' ? 'oferta-' : 'offering-') + slugify(p.name, 'imovel') + '.pdf', p.name || 'Imóvel');
   }));
+  holder.querySelectorAll('[data-loan-pdf]').forEach((b) => b.addEventListener('click', () => {
+    const l = state.loans.find((x) => x.id === b.dataset.loanPdf);
+    if (l) shareLoanPdf(c, l, c.lang);
+  }));
   const addLoan = holder.querySelector('#add-loan');
   if (addLoan) addLoan.addEventListener('click', () => {
     const n = state.loans.filter((l) => l.clientId === c.id).length + 1;
@@ -571,6 +579,13 @@ function renderClientResults(holder, c) {
 }
 
 /* ===== Empréstimo ===== */
+// extrato de um único empréstimo, no idioma escolhido, para enviar ao credor
+function shareLoanPdf(c, l, lang) {
+  if (!Investors.computeLoan(l).rows.length) { alert('Lance pelo menos o aporte antes de gerar o extrato.'); return; }
+  sharePdf(Pdf.reportPdf(Reports.loanDoc(Object.assign({}, c, { lang }), l, state.profile)),
+    (lang === 'pt' ? 'extrato-' : 'statement-') + slugify(`${c.name} ${l.label}`, 'emprestimo') + '.pdf', l.label || 'Empréstimo');
+}
+
 function entriesTable(l) {
   if (!l.entries.length) return '<p class="hint">Nenhum lançamento. Comece pelo aporte (o dinheiro que você recebeu).</p>';
   return `<div class="table-wrap"><table class="draw-editor pay-editor">
@@ -640,12 +655,7 @@ function renderLoanDetail(el, c, l) {
       save(); invGo({ seg: 'clients', clientId: c.id });
     }
   });
-  el.querySelector('#loan-pdf').addEventListener('click', () => {
-    if (!Investors.computeLoan(l).rows.length) { alert('Lance pelo menos o aporte antes de gerar o extrato.'); return; }
-    const lang = el.querySelector('#loan-lang').value;
-    sharePdf(Pdf.reportPdf(Reports.loanDoc(Object.assign({}, c, { lang }), l, state.profile)),
-      (lang === 'pt' ? 'extrato-' : 'statement-') + slugify(`${c.name} ${l.label}`, 'emprestimo') + '.pdf', l.label || 'Empréstimo');
-  });
+  el.querySelector('#loan-pdf').addEventListener('click', () => shareLoanPdf(c, l, el.querySelector('#loan-lang').value));
   el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => {
     l.entries.push(Investors.makeEntry({ type: b.dataset.add, date: Investors.todayIso() }));
     save(); redraw();
