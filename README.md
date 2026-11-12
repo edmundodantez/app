@@ -8,7 +8,7 @@ dependências, sem build — HTML, CSS e JavaScript puros.
 
 No computador o app abre com barra lateral e painel largo; no iPhone, com barra
 superior e abas embaixo. A tela **Início** é o painel geral: lucro projetado,
-menor saldo de caixa, capital de clientes em obras, saldo devido a credores,
+capital de clientes em obras, saldo devido a credores, juros a pagar hoje,
 imóveis disponíveis, clientes procurando, próximos pagamentos de clientes (com
 os atrasados em destaque), deals e credores. O visual é sempre claro (branco
 com azul), mesmo com o aparelho em modo escuro. O nome da empresa (Ajustes) aparece na barra

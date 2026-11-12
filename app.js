@@ -304,23 +304,17 @@ function renderDashboard() {
   const seekerRows = seekers.map((c) => ({ c,
     n: avail.filter(({ p, r }) => Investors.propertyMatchesClient(p, c, r)).length }));
 
-  const shortfall = d.lowestBalance < 0
-    ? `<div class="warn-box">${icon('warn')}<span>O caixa projetado fica <b>negativo</b> (mínimo de <b>${money(d.lowestBalance)}</b>).
-       Com ${money(d.startingCash)} iniciais, faltam <b>${money(-d.lowestBalance)}</b> no pior mês.</span></div>`
-    : '';
-
   el.innerHTML = `
     <div class="quick-row">
       <button class="mini-btn primary" data-quick="prop">+ Imóvel</button>
       <button class="mini-btn" data-quick="client">+ Cliente</button>
       <button class="mini-btn" data-quick="calc">Analisar deal</button>
     </div>
-    ${shortfall}
     <div class="kpi-grid">
       ${kpi('profit', 'Lucro projetado dos deals', pnl(d.totalProfit), `${d.activeDeals} deal(s) ativo(s) · ROI ${fmtPct1.format(d.roiPeak)} s/ pico`)}
-      ${kpi('cash', 'Menor saldo de caixa', pnl(d.lowestBalance), `Caixa inicial ${money(d.startingCash)}`)}
       ${kpi('people', 'Capital de clientes em obras', money(O.clientCapitalPaid), `${O.active} imóvel(is) com cliente · ${O.available} disponível(is)`)}
-      ${kpi('bank', 'Devo a credores', money(O.principal), `Juros a pagar hoje ${money(O.interestDue)}`)}
+      ${kpi('bank', 'Devo a credores', money(O.principal), `${loans.length} empréstimo(s) em aberto`)}
+      ${kpi('cash', 'Juros a pagar hoje', money(O.interestDue), `Aprox. ${money(O.monthlyInterest)} por mês no saldo atual`)}
     </div>
     <div class="dash-pair">
       <div class="card">
