@@ -100,6 +100,14 @@ const docs = {
   extratoEn: Reports.statementDoc(lender, [prop], [Object.assign({}, loan, {
     entries: Array.from({ length: 70 }, (_, i) => ({ id: 'x' + i, date: `2026-01-${String(1 + (i % 28)).padStart(2, '0')}`, type: i ? 'principal' : 'advance', amount: i ? 100 : 100000 })) })], profile, '2026-07-01'),
 };
+docs.emprestimoEn = Reports.loanDoc(lender, loan, profile, '2026-07-01');
+docs.emprestimoPt = Reports.loanDoc(Object.assign({}, lender, { lang: 'pt' }), loan, profile, '2026-07-01');
+check('extrato do empréstimo: título e credor', docs.emprestimoEn.title === 'Loan A'
+  && docs.emprestimoEn.blocks[0].rows[0][1] === 'John Lender');
+check('extrato do empréstimo: total devido', docs.emprestimoEn.blocks[1].tiles[3][1] === '$62,753.97');
+check('extrato do empréstimo: só lançamentos até a data',
+  docs.emprestimoEn.blocks.find((b) => b.type === 'table').rows.length === 3);
+check('extrato do empréstimo em português', /Extrato do empréstimo/.test(docs.emprestimoPt.subtitle));
 const outDir = process.argv[2];
 for (const [name, doc] of Object.entries(docs)) {
   const bytes = Pdf.reportPdf(doc);

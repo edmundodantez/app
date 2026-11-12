@@ -58,7 +58,8 @@ Reproduz o modelo das planilhas, célula por célula:
     dias), então cada devolução de principal reduz os juros dali em diante.
   - **PDFs** (`reports.js`): oferta de um imóvel, lista dos investimentos
     disponíveis e extrato do cliente (imóveis, pagamentos, retorno e
-    empréstimos). O extrato sai no idioma configurado no cliente (inglês ou
+    empréstimos), além do extrato de um único empréstimo para o credor. O
+    extrato sai no idioma configurado no cliente (inglês ou
     português); o nome da empresa e o contato vêm da aba Ajustes.
 - **Nuvem** (`cloud.js`, opcional) — sincroniza todos os dados entre celular e
   computador com um login só seu. Veja "Como ligar a nuvem" abaixo.

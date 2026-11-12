@@ -592,6 +592,10 @@ function renderLoanDetail(el, c, l) {
         <button class="mini-btn danger" id="del-loan">Excluir</button>
       </div>
       <h2 class="deal-title">${esc(l.label || 'Empréstimo')}</h2>
+      <div class="row-gap wrap" style="margin:8px 0 4px">
+        ${langSelect('loan-lang', c.lang)}
+        <button class="mini-btn" id="loan-pdf">Compartilhar extrato em PDF</button>
+      </div>
       <form id="loan-form" onsubmit="return false">
         <div class="field-grid">
           ${fld('Descrição', inp(l, 'label', 'text'))}
@@ -635,6 +639,12 @@ function renderLoanDetail(el, c, l) {
       state.loans = state.loans.filter((x) => x.id !== l.id);
       save(); invGo({ seg: 'clients', clientId: c.id });
     }
+  });
+  el.querySelector('#loan-pdf').addEventListener('click', () => {
+    if (!Investors.computeLoan(l).rows.length) { alert('Lance pelo menos o aporte antes de gerar o extrato.'); return; }
+    const lang = el.querySelector('#loan-lang').value;
+    sharePdf(Pdf.reportPdf(Reports.loanDoc(Object.assign({}, c, { lang }), l, state.profile)),
+      (lang === 'pt' ? 'extrato-' : 'statement-') + slugify(`${c.name} ${l.label}`, 'emprestimo') + '.pdf', l.label || 'Empréstimo');
   });
   el.querySelectorAll('[data-add]').forEach((b) => b.addEventListener('click', () => {
     l.entries.push(Investors.makeEntry({ type: b.dataset.add, date: Investors.todayIso() }));
