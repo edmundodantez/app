@@ -104,11 +104,11 @@ function renderInvestors() {
   else if (loan) renderLoanDetail(el, client, loan);
   else if (client) renderClientDetail(el, client);
   else renderInvestorsHome(el);
-  window.scrollTo(0, 0);
 }
 function invGo(nav) {
   Object.assign(invNav, { propId: null, clientId: null, loanId: null }, nav);
   renderInvestors();
+  window.scrollTo(0, 0);
 }
 
 /* ===== Home: resumo + listas ===== */
@@ -163,7 +163,7 @@ function renderPropertyList(holder) {
     <div class="card">
       <div class="row-between">
         <h2>Imóveis</h2>
-        <button class="mini-btn" id="add-prop">+ Novo imóvel</button>
+        <button class="mini-btn primary" id="add-prop">+ Novo imóvel</button>
       </div>
       ${list.length ? `<div class="deal-list">${list.map(({ p, r }) => propItem(p, r)).join('')}</div>`
         : '<p class="hint">Nenhum imóvel ainda. Cadastre os imóveis disponíveis para oferecer aos clientes.</p>'}
@@ -411,7 +411,7 @@ function renderClientList(holder) {
     <div class="card">
       <div class="row-between">
         <h2>Clientes</h2>
-        <button class="mini-btn" id="add-client">+ Novo cliente</button>
+        <button class="mini-btn primary" id="add-client">+ Novo cliente</button>
       </div>
       ${list.length ? `<div class="deal-list">${list.map(({ c, s }) => {
         const parts = [];
@@ -530,7 +530,7 @@ function renderClientResults(holder, c) {
   }
   if (showLoans) {
     html += `<div class="card">
-      <div class="row-between"><h2>Empréstimos</h2><button class="mini-btn" id="add-loan">+ Novo empréstimo</button></div>
+      <div class="row-between"><h2>Empréstimos</h2><button class="mini-btn primary" id="add-loan">+ Novo empréstimo</button></div>
       ${S.loans.length ? `
         <div class="stat-row">
           ${tile('Principal em aberto', money2(S.principal))}

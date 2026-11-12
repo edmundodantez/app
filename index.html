@@ -7,8 +7,8 @@
   <meta name="description" content="Modelo multi-deal de cashflow imobiliário: terreno, construção, draws, financiamento e venda.">
 
   <link rel="manifest" href="manifest.webmanifest">
-  <meta name="theme-color" content="#f9f9f7" media="(prefers-color-scheme: light)">
-  <meta name="theme-color" content="#0d0d0d" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#f3f5f8" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f15" media="(prefers-color-scheme: dark)">
 
   <!-- iOS PWA -->
   <meta name="apple-mobile-web-app-capable" content="yes">
@@ -20,46 +20,59 @@
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-  <header class="app-header">
-    <h1>InvestCalc</h1>
-    <p class="subtitle">Real estate cashflow — multi-deal</p>
-  </header>
+  <aside class="side">
+    <div class="brand">
+      <span class="brand-mark"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M7 21.500l5.500-6 4 3.500L25 10" fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10h5v5" fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <span class="brand-text"><b class="brand-name">InvestCalc</b><small>Real estate</small></span>
+    </div>
+    <nav class="tab-bar" role="tablist" aria-label="Seções">
+      <button class="tab-btn active" role="tab" aria-selected="true" data-target="dash">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9h14v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Início</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-target="inv">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.700 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 5.200a3.200 3.200 0 0 1 0 5.600M17.500 14.300c2 .800 3.500 2.800 3.500 5.700" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        <span>Clientes</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-target="deals">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 21V5a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v16M15 10h4a1 1 0 0 1 1 1v10M2 21h20M8 8h3M8 12h3M8 16h3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Deals</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-target="master">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>Cashflow</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-target="calc">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
+        <span>Calcular</span>
+      </button>
+      <button class="tab-btn" role="tab" aria-selected="false" data-target="config">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.1-1.2L14 3h-4l-.5 2.7a7 7 0 0 0-2.1 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.1 1.2L10 21h4l.5-2.7a7 7 0 0 0 2.1-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+        <span>Ajustes</span>
+      </button>
+    </nav>
+    <div class="side-foot"><button type="button" class="cloud-pill"></button></div>
+  </aside>
 
-  <main>
-    <section id="tab-calc" class="tab-panel" data-tab="calc"></section>
-    <section id="tab-dash" class="tab-panel" data-tab="dash" hidden></section>
-    <section id="tab-deals" class="tab-panel" data-tab="deals" hidden></section>
-    <section id="tab-master" class="tab-panel" data-tab="master" hidden></section>
-    <section id="tab-inv" class="tab-panel" data-tab="inv" hidden></section>
-    <section id="tab-config" class="tab-panel" data-tab="config" hidden></section>
-  </main>
+  <div class="content">
+    <header class="top-bar">
+      <span class="brand-mark mini"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="currentColor"/><path d="M7 21.500l5.500-6 4 3.500L25 10" fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10h5v5" fill="none" stroke="#fff" stroke-width="2.600" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      <div class="top-titles">
+        <h1 id="page-title">Início</h1>
+        <p class="subtitle" id="page-sub"></p>
+      </div>
+      <button type="button" class="cloud-pill"></button>
+    </header>
 
-  <nav class="tab-bar" role="tablist" aria-label="Seções">
-    <button class="tab-btn active" role="tab" aria-selected="true" data-target="calc">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      <span>Calcular</span>
-    </button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-target="dash">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
-      <span>Dashboard</span>
-    </button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-target="deals">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-7 9 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 10v9h14v-9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Deals</span>
-    </button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-target="master">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span>Cashflow</span>
-    </button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-target="inv">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.700 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 5.200a3.200 3.200 0 0 1 0 5.600M17.500 14.300c2 .800 3.500 2.800 3.500 5.700" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      <span>Clientes</span>
-    </button>
-    <button class="tab-btn" role="tab" aria-selected="false" data-target="config">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.1-1.2L14 3h-4l-.5 2.7a7 7 0 0 0-2.1 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.1 1.2L10 21h4l.5-2.7a7 7 0 0 0 2.1-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span>Ajustes</span>
-    </button>
-  </nav>
+    <main>
+      <section id="tab-dash" class="tab-panel" data-tab="dash"></section>
+      <section id="tab-inv" class="tab-panel" data-tab="inv" hidden></section>
+      <section id="tab-deals" class="tab-panel" data-tab="deals" hidden></section>
+      <section id="tab-master" class="tab-panel" data-tab="master" hidden></section>
+      <section id="tab-calc" class="tab-panel" data-tab="calc" hidden></section>
+      <section id="tab-config" class="tab-panel" data-tab="config" hidden></section>
+    </main>
+  </div>
 
   <div class="chart-tooltip" id="tooltip" hidden></div>
 
