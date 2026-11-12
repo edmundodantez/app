@@ -205,7 +205,7 @@ function renderPropertyList(holder) {
   });
 }
 
-// copia terreno, draws (datas e valores do modelo), preço e data de venda de um deal do InvestCalc
+// copia terreno, draws (datas e valores do modelo), preço e data de venda de um deal do Investor Management
 function propertyFromDeal(deal) {
   const r = Model.computeDeal(deal, state.params);
   const payments = [];

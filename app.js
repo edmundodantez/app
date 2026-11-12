@@ -132,7 +132,7 @@ const PAGE_SUBS = {
 const fmtDateLong = new Intl.DateTimeFormat('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
 function updateChrome(tab) {
   const t = tab || (document.querySelector('.tab-btn.active') || {}).dataset?.target || 'dash';
-  const company = (state.profile && state.profile.company) || 'InvestCalc';
+  const company = (state.profile && state.profile.company) || 'Investor Management';
   document.querySelectorAll('.brand-name').forEach((el) => { el.textContent = company; });
   const h = new Date().getHours();
   const hello = h < 12 ? 'Bom dia' : h < 18 ? 'Boa tarde' : 'Boa noite';
@@ -683,7 +683,7 @@ function buildAnalysisDoc(deal, r) {
 
   return {
     title: deal.name || '(sem nome)',
-    subtitle: `InvestCalc — Análise de deal · gerada em ${fmtDateFull.format(new Date())}`,
+    subtitle: `Investor Management — Análise de deal · gerada em ${fmtDateFull.format(new Date())}`,
     sections: [
       { heading: 'Premissas', rows: premissas },
       { heading: 'Resultados', rows: resultados },
@@ -704,7 +704,7 @@ function buildAnalysisDoc(deal, r) {
       ]),
       strongRow: r.sensitivity.findIndex((s) => s.scenario === 0),
     },
-    footer: 'Juros mantidos no cenário base na sensibilidade (efeito só do preço). Gerado pelo InvestCalc.',
+    footer: 'Juros mantidos no cenário base na sensibilidade (efeito só do preço). Gerado pelo Investor Management.',
     charts: [
       {
         title: 'Exposição de caixa mês a mês',
@@ -1048,7 +1048,7 @@ function renderConfig() {
       <p class="hint">Aparecem no cabeçalho e no rodapé das ofertas e dos extratos enviados aos clientes.</p>
       <div class="field-grid">
         <label class="field"><span>Nome da empresa</span><div class="input-wrap">
-          <input type="text" data-prof="company" value="${esc(state.profile.company)}" placeholder="InvestCalc" autocomplete="off"></div></label>
+          <input type="text" data-prof="company" value="${esc(state.profile.company)}" placeholder="Investor Management" autocomplete="off"></div></label>
         <label class="field"><span>Contato (telefone ou e-mail)</span><div class="input-wrap">
           <input type="text" data-prof="contact" value="${esc(state.profile.contact)}" autocomplete="off"></div></label>
       </div>
@@ -1094,7 +1094,7 @@ function renderConfig() {
     const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'investcalc-dados.json';
+    a.download = 'investor-management-dados.json';
     a.click();
     URL.revokeObjectURL(a.href);
   });
@@ -1109,7 +1109,7 @@ function renderConfig() {
         renderConfig();
         alert('Dados importados.');
       } catch {
-        alert('Arquivo inválido — use um JSON exportado pelo InvestCalc.');
+        alert('Arquivo inválido — use um JSON exportado pelo Investor Management.');
       }
     });
   });
