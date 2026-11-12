@@ -293,6 +293,16 @@ function renderDashboard() {
   }
   due.sort((a, b) => a.x.dueDate.localeCompare(b.x.dueDate));
   const loans = state.loans.map((l) => ({ l, r: Investors.computeLoan(l, today) })).filter((x) => x.r.rows.length);
+
+  // imóveis disponíveis e clientes procurando, com quantos combinam entre si (orçamento e região)
+  const avail = state.properties.map((p) => ({ p, r: Investors.computeProperty(p, today) }))
+    .filter((x) => x.r.status === 'available');
+  const seekers = state.clients.filter((c) => c.kind !== 'lender' && c.looking);
+  const fits = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : 'nenhum compatível');
+  const availRows = avail.map(({ p, r }) => ({ p, r,
+    n: seekers.filter((c) => Investors.propertyMatchesClient(p, c, r)).length }));
+  const seekerRows = seekers.map((c) => ({ c,
+    n: avail.filter(({ p, r }) => Investors.propertyMatchesClient(p, c, r)).length }));
   const months = d.master.months;
 
   const shortfall = d.lowestBalance < 0
@@ -312,6 +322,34 @@ function renderDashboard() {
       ${kpi('cash', 'Menor saldo de caixa', pnl(d.lowestBalance), `Caixa inicial ${money(d.startingCash)}`)}
       ${kpi('people', 'Capital de clientes em obras', money(O.clientCapitalPaid), `${O.active} imóvel(is) com cliente · ${O.available} disponível(is)`)}
       ${kpi('bank', 'Devo a credores', money(O.principal), `Juros a pagar hoje ${money(O.interestDue)}`)}
+    </div>
+    <div class="dash-pair">
+      <div class="card">
+        <div class="card-head"><h2>Imóveis disponíveis <span class="count">${avail.length}</span></h2>
+          <button class="mini-btn" data-go="inv">Ver imóveis</button></div>
+        ${availRows.length ? `<div class="rows">${availRows.slice(0, 6).map(({ p, r, n }) => `
+          <button class="row-item" data-prop="${esc(p.id)}">
+            <span class="row-main"><b>${esc(p.name || '(sem nome)')}</b>
+              <small>${esc([p.city, fits(n, 'cliente compatível', 'clientes compatíveis')].filter(Boolean).join(' · '))}</small></span>
+            <span class="row-side"><b>${money(r.totalCost)}</b>
+              <small>${r.hasSale ? `retorno est. ${fmtPct1.format(r.roi)}` : 'sem preço de venda'}</small></span>
+          </button>`).join('')}</div>
+          ${availRows.length > 6 ? `<p class="hint">+ ${availRows.length - 6} outro(s) imóvel(is) disponível(is).</p>` : ''}`
+          : '<p class="empty">Nenhum imóvel disponível no momento.</p>'}
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Clientes procurando <span class="count">${seekers.length}</span></h2>
+          <button class="mini-btn" data-go="inv" data-seg="clients">Ver clientes</button></div>
+        ${seekerRows.length ? `<div class="rows">${seekerRows.slice(0, 6).map(({ c, n }) => `
+          <button class="row-item" data-client-open="${esc(c.id)}">
+            <span class="row-main"><b>${esc(c.name || '(sem nome)')}</b>
+              <small>${esc(c.location || 'qualquer região')}</small></span>
+            <span class="row-side"><b>${c.budgetMax ? 'até ' + money(c.budgetMax) : 'sem limite'}</b>
+              <small>${fits(n, 'imóvel compatível', 'imóveis compatíveis')}</small></span>
+          </button>`).join('')}</div>
+          ${seekerRows.length > 6 ? `<p class="hint">+ ${seekerRows.length - 6} outro(s) cliente(s) procurando.</p>` : ''}`
+          : '<p class="empty">Nenhum cliente procurando imóvel no momento.</p>'}
+      </div>
     </div>
     <div class="dash-grid">
       <div class="card span-2">
@@ -361,11 +399,6 @@ function renderDashboard() {
           </button>`).join('')}</div>
           <p class="hint">Juros de aproximadamente ${money(O.monthlyInterest)} por mês no saldo atual.</p>`
           : '<p class="empty">Nenhum empréstimo lançado.</p>'}
-        <div class="mini-stats">
-          <span><b>${O.looking}</b> cliente(s) procurando</span>
-          <span><b>${O.available}</b> imóvel(is) disponível(is)</span>
-          <span><b>${O.sold}</b> vendido(s)</span>
-        </div>
       </div>
     </div>`;
 
@@ -380,6 +413,8 @@ function renderDashboard() {
     if (b.dataset.go === 'inv') openInv({ seg: b.dataset.seg || 'props' }); else goTab(b.dataset.go);
   }));
   el.querySelectorAll('[data-prop]').forEach((b) => b.addEventListener('click', () => openInv({ seg: 'props', propId: b.dataset.prop })));
+  el.querySelectorAll('[data-client-open]').forEach((b) => b.addEventListener('click', () =>
+    openInv({ seg: 'clients', clientId: b.dataset.clientOpen })));
   el.querySelectorAll('[data-loan]').forEach((b) => b.addEventListener('click', () =>
     openInv({ seg: 'clients', clientId: b.dataset.client, loanId: b.dataset.loan })));
   el.querySelectorAll('[data-quick]').forEach((b) => b.addEventListener('click', () => {
