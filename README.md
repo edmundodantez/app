@@ -52,12 +52,18 @@ Reproduz o modelo das planilhas, célula por célula:
     o cliente paga ao construtor) é gerado a partir desse plano, com as etapas
     do cronograma padrão dos deals, e pode ser editado. Também dá para criar um
     imóvel a partir de um deal existente.
-  - **Cash × financiado**: cada imóvel é rodado pelo modelo do Single Deal
-    Analyzer nos dois cenários — tudo em cash e com construction loan (LTC,
-    land advance, reembolso dos draws, loan fees e juros; padrões da aba
-    Ajustes ou valores próprios do imóvel). A comparação (lucro, ROI sobre o
-    caixa investido, ROI anualizado, caixa no closing, pico de caixa, juros)
-    aparece na tela do imóvel e no PDF da oferta.
+  - **Financiado × à vista**: cada imóvel é rodado pelo modelo do Single Deal
+    Analyzer nas duas opções — construction loan (LTC, adiantamento do
+    terreno, reembolso dos draws, taxas e juros) e tudo à vista. Os termos do
+    financiamento são os mesmos para todos os imóveis (aba Ajustes; o seguro
+    já está incluso nas taxas). A tela do imóvel mostra a comparação e a
+    sensibilidade do preço de venda.
+  - **PDFs de apresentação** (`decks.js`), em português ou inglês:
+    *Financiado vs À Vista* (resumo técnico de 2 páginas, com cronograma de
+    desembolsos e gráfico do caixa do investidor) e *Visão Geral* (apresentação
+    16:9 com a oportunidade, o que será construído, as duas opções, o caixa
+    mês a mês, a proteção contra queda, riscos e resumo). As páginas do bairro
+    e das vendas comparáveis entram quando os textos são preenchidos no imóvel.
   - **Clientes** que procuram imóveis (orçamento para o terreno e região): o app mostra
     quais imóveis disponíveis combinam com cada cliente e vice-versa. Ao
     atribuir um imóvel, você marca a data em que cada draw foi pago e vê

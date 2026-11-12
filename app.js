@@ -19,6 +19,7 @@ function migrate(s) {
   if (!s.calc) s.calc = freshCalcDeal();
   // dados de investidores (imóveis ofertados, clientes, empréstimos de credores)
   for (const k of ['properties', 'clients', 'loans']) if (!Array.isArray(s[k])) s[k] = [];
+  for (const p of s.properties) if (!Array.isArray(p.comps)) p.comps = [];
   // imóveis antigos só tinham o cronograma: deriva dele o plano do investimento
   for (const p of s.properties) {
     if (p.landPrice !== undefined) continue;
