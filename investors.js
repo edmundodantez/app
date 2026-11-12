@@ -33,6 +33,8 @@ const makeProperty = (over) => Object.assign({
   // plano do investimento (como no deal analyzer)
   landPrice: null, constrPerSqft: null, constrBudget: null, otherCosts: null,
   landDate: null, constrStart: null, numDraws: 7,
+  // cenário financiado: em branco usam os padrões globais (Ajustes)
+  ltc: null, rate: null, loanFeesPct: null,
   estSalePrice: 0, saleCostPct: 0.08, estSaleDate: null,
   clientId: null, purchaseDate: null,
   payments: [],            // { id, kind:'land'|'draw'|'other', desc, amount, dueDate, paidDate }
@@ -243,14 +245,72 @@ function computeLoan(loan, asOfIso) {
   };
 }
 
+/* ===== Cash × financiado (modelo do Single Deal Analyzer) =====
+ * Roda o mesmo imóvel pelo modelo dos deals (Model.computeDeal) duas vezes:
+ * tudo em cash e com construction loan (LTC, land advance, reembolso dos draws,
+ * loan fees e juros). Os draws vêm do cronograma do imóvel (ou do plano, se
+ * ainda não houver cronograma). "Outros custos" não existem na planilha: entram
+ * como caixa próprio nos dois cenários.
+ */
+function financingScenarios(p, params, Model, asOfIso) {
+  const r = computeProperty(p, asOfIso);
+  const pays = r.hasSchedule ? (p.payments || []) : planSchedule(p, params && params.drawSchedule);
+  const dateOf = (x) => x.paidDate || x.dueDate || null;
+  const landPay = pays.find((x) => x.kind === 'land' && num(x.amount) > 0);
+  let draws = pays.filter((x) => x.kind === 'draw' && num(x.amount) > 0)
+    .map((x) => ({ desc: x.desc || 'Draw', amountOverride: num(x.amount), dateOverride: dateOf(x) }));
+  if (draws.length > 10) { // o modelo tem 10 draws: junta os excedentes no último
+    const extra = draws.slice(9);
+    draws = draws.slice(0, 9).concat([{ desc: 'Draws 10+', dateOverride: extra[extra.length - 1].dateOverride,
+      amountOverride: extra.reduce((s, x) => s + x.amountOverride, 0) }]);
+  }
+  const firstDraw = draws.map((d) => d.dateOverride).filter(Boolean).sort()[0] || null;
+  const closing = (landPay && dateOf(landPay)) || p.landDate || p.constrStart || firstDraw;
+  const constrStart = p.constrStart || firstDraw || closing;
+  const missing = [];
+  if (!r.hasSale) missing.push('sale');
+  if (!r.saleDate) missing.push('saleDate');
+  if (!closing) missing.push('landDate');
+  if (r.constrCost > 0 && !constrStart && draws.some((d) => !d.dateOverride)) missing.push('constrStart');
+  if (r.landCost + r.constrCost <= 0) missing.push('cost');
+  if (missing.length) return { ready: false, missing };
+
+  const run = (financing) => {
+    const R = Model.computeDeal({
+      status: 'Active', financing, closing, constrStart, saleDate: r.saleDate,
+      land: r.landCost, constr: r.constrCost, sale: r.salePrice,
+      ltc: p.ltc ?? null, rate: p.rate ?? null, loanFeesPct: p.loanFeesPct ?? null,
+      landAdvPct: null, reimbPct: null, reimbDelayDays: null, insurance: null,
+      saleCostPct: r.saleCostPct, numDraws: draws.length, draws,
+      advTiming: 'At Closing', advDelayMo: 0, holdCost: 0, basis: 'After Land Reimbursement',
+    }, params);
+    const other = r.otherCost;
+    const profit = R.profit - other;
+    const basis = R.peakAfterLandReimb + other;
+    const roi = basis > 0 ? profit / basis : 0;
+    return {
+      financing, profit, roi,
+      annualized: R.holdingMonths > 0 ? roi * 12 / R.holdingMonths : 0,
+      cashAtClosing: R.initialCashAtClosing + other,
+      peakCash: R.peakExposure + other, basis,
+      maxLoan: R.maxLoan, landAdvance: R.landAdvance, loanFees: R.loanFees, interest: R.totalInterest,
+      breakEven: r.saleCostPct < 1 ? R.breakEven + other / (1 - r.saleCostPct) : 0,
+      months: R.holdingMonths, margin: r.salePrice > 0 ? profit / r.salePrice : 0,
+      ltc: R.resolved.ltc, rate: R.resolved.rate, loanFeesPct: R.resolved.loanFeesPct,
+    };
+  };
+  return { ready: true, cash: run('Cash'), loan: run('Construction Loan') };
+}
+
 /* ===== Casamento cliente × imóvel disponível ===== */
 const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 
 function propertyMatchesClient(p, client, r) {
   const res = r || computeProperty(p);
   if (res.status !== 'available') return false;
+  // o orçamento do cliente é só para o terreno
   const budget = num(client.budgetMax);
-  if (budget > 0 && res.totalCost > budget) return false;
+  if (budget > 0 && res.landCost > budget) return false;
   const wanted = fold(client.location).split(/[,;/]+/).map((s) => s.trim()).filter(Boolean);
   if (!wanted.length) return true;
   const where = fold(`${p.city} ${p.address} ${p.name}`);
@@ -302,7 +362,7 @@ function overview(properties, clients, loans, asOfIso) {
 const Investors = {
   parseDate, isoDate, todayIso, newId, num,
   makeProperty, makePayment, makeClient, makeLoan, makeEntry, buildSchedule, planOf, planSchedule,
-  xirr, computeProperty, computeLoan, propertyMatchesClient, clientSummary, overview,
+  financingScenarios, xirr, computeProperty, computeLoan, propertyMatchesClient, clientSummary, overview,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Investors;
 else global.Investors = Investors;

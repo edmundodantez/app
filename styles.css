@@ -760,3 +760,6 @@ th { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
 }
 .plan-line { margin: 10px 0 0; font-size: 0.86rem; color: var(--text-secondary); background: var(--accent-soft); border-radius: 10px; padding: 9px 12px; line-height: 1.45; }
 .plan-line b { color: var(--text-primary); }
+.scen-table th:not(:first-child), .scen-table td:not(:first-child) { width: 27%; }
+.scen-table td:first-child { white-space: normal; color: var(--text-secondary); }
+.scen-table .row-strong td:first-child { color: var(--text-primary); }
