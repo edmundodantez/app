@@ -30,13 +30,14 @@
     <section id="tab-dash" class="tab-panel" data-tab="dash" hidden></section>
     <section id="tab-deals" class="tab-panel" data-tab="deals" hidden></section>
     <section id="tab-master" class="tab-panel" data-tab="master" hidden></section>
+    <section id="tab-inv" class="tab-panel" data-tab="inv" hidden></section>
     <section id="tab-config" class="tab-panel" data-tab="config" hidden></section>
   </main>
 
   <nav class="tab-bar" role="tablist" aria-label="Seções">
     <button class="tab-btn active" role="tab" aria-selected="true" data-target="calc">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 6h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15h.01M8 19h.01M12 19h.01M16 19h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/></svg>
-      <span>Calculadora</span>
+      <span>Calcular</span>
     </button>
     <button class="tab-btn" role="tab" aria-selected="false" data-target="dash">
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="3" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="3" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><rect x="13" y="13" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="2"/></svg>
@@ -50,6 +51,10 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M15 7h6v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
       <span>Cashflow</span>
     </button>
+    <button class="tab-btn" role="tab" aria-selected="false" data-target="inv">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.700 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M16 5.200a3.200 3.200 0 0 1 0 5.600M17.500 14.300c2 .800 3.500 2.800 3.500 5.700" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Clientes</span>
+    </button>
     <button class="tab-btn" role="tab" aria-selected="false" data-target="config">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.5-2-3.4-2.3 1a7 7 0 0 0-2.1-1.2L14 3h-4l-.5 2.7a7 7 0 0 0-2.1 1.2l-2.3-1-2 3.4 2 1.5A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.5 2 3.4 2.3-1a7 7 0 0 0 2.1 1.2L10 21h4l.5-2.7a7 7 0 0 0 2.1-1.2l2.3 1 2-3.4-2-1.5c.1-.4.1-.8.1-1.2z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
       <span>Ajustes</span>
@@ -61,6 +66,10 @@
   <script src="model.js"></script>
   <script src="seed.js"></script>
   <script src="pdfgen.js"></script>
+  <script src="investors.js"></script>
+  <script src="reports.js"></script>
   <script src="app.js"></script>
+  <script src="investors-ui.js"></script>
+  <script src="cloud.js"></script>
 </body>
 </html>
