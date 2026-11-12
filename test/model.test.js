@@ -120,6 +120,30 @@ check('portfolio.peakExposure = startingCash - lowestBalance',
   check('semPaidDate.nadaMuda', Number(plan.drawRows.some((r) => r.paid)), 0);
 }
 
+// draws pagos fora do período do deal não somem do caixa (deal todo em cash: pico = custo total)
+{
+  const base = SEED_DEALS.find((d) => d.id === 'bradenton');
+  const run = (i, paidDate) => {
+    const d = JSON.parse(JSON.stringify(base));
+    d.draws[i].paidDate = paidDate;
+    return Model.computeDeal(d, Model.DEFAULT_PARAMS);
+  };
+  const ok = Model.computeDeal(base, Model.DEFAULT_PARAMS);
+  check('cash.pico = custo total', ok.peakExposure, 308588);
+  check('cash.semDrawsForaDoPeriodo', ok.outOfPeriod.length, 0);
+  const early = run(0, '2026-03-10');
+  check('drawAntesDoClosing.pico', early.peakExposure, 308588);
+  check('drawAntesDoClosing.lucro', early.profit, ok.profit);
+  check('drawAntesDoClosing.avisa', early.outOfPeriod.length, 1);
+  check('drawAntesDoClosing.marcaCedo', Number(early.outOfPeriod[0].early), 1);
+  check('drawAntesDoClosing.contaNoPrimeiroMes', early.months[0].E, 203288);
+  const late = run(4, '2027-01-15');
+  // pago depois da venda, o draw nunca chegou a ficar exposto: o pico é o que havia antes da venda
+  check('drawDepoisDaVenda.pico', late.peakExposure, 308588 - 26325);
+  check('drawDepoisDaVenda.avisa', Number(late.outOfPeriod.length === 1 && !late.outOfPeriod[0].early), 1);
+  check('drawDepoisDaVenda.saldoFinal', late.months[late.months.length - 1].M, ok.profit);
+}
+
 console.log(fails === 0
   ? 'OK — todos os testes passaram (exemplo do modelo novo + deals cash + invariantes)'
   : `${fails} teste(s) falharam`);

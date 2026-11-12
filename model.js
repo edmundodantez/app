@@ -148,16 +148,25 @@ function computeDeal(deal, params) {
   const nMonths = Math.min(MAX_MONTHS, G19);
   const netSalePrice = sale * (1 - saleCostPct);
   const months = [];
+  // Um pagamento datado fora do período do deal (antes do mês do closing ou depois da
+  // venda) não cai em nenhum mês da planilha e sumiria do caixa. Em vez disso entra no
+  // primeiro ou no último mês; outOfPeriod lista esses draws para a tela avisar.
+  const firstStart = closing != null ? firstOfMonth(closing) : null;
+  const clamp = (t) => (t == null || firstStart == null || saleDate == null ? t
+    : (t < firstStart ? firstStart : (t > saleDate ? saleDate : t)));
+  const outOfPeriod = drawRows.filter((r) => r.isOn && r.amount > 0 && r.payDate != null && clamp(r.payDate) !== r.payDate)
+    .map((r) => ({ num: r.num, payDate: r.payDate, early: r.payDate < firstStart }));
   let Mprev = 0, Nprev = 0;
   for (let m = 1; m <= nMonths; m++) {
     const start = edate(firstOfMonth(closing), m - 1);
     const end = Math.min(eomonth(start), saleDate);
     const inPeriod = (t) => t != null && t >= start && t <= end;
     const D = inPeriod(closing) ? land + G7 : 0;                            // Land/Fees Out
-    const E = drawRows.reduce((s, r) => s + (inPeriod(r.payDate) ? r.amount : 0), 0); // Builder Out
+    const E = drawRows.reduce((s, r) => s + (inPeriod(clamp(r.payDate)) ? r.amount : 0), 0); // Builder Out
     const I = cash ? 0
       : (inPeriod(G17) ? G6 : 0)
-        + drawRows.reduce((s, r) => s + (r.reimb > 0 && inPeriod(r.reimbDate) ? r.reimb : 0), 0); // Bank Reimb In
+        + drawRows.reduce((s, r) => s + (r.reimb > 0
+          && inPeriod(r.reimbDate != null && r.reimbDate < firstStart ? firstStart : r.reimbDate) ? r.reimb : 0), 0); // Bank Reimb In
     const Pbal = cash ? 0 : Nprev + I;                                      // Pre-Sale Loan Bal.
     const F = cash ? 0 : (rate / 12) * ((Nprev + Pbal) / 2);                // Interest Out
     const G = cash ? 0 : (inPeriod(saleDate) ? Math.max(0, Pbal - netSalePrice) : 0); // Sale Shortfall
@@ -233,7 +242,7 @@ function computeDeal(deal, params) {
     profit: G20, margin: G21, breakEven: G22, roiPeak: G23,
     roiAfterLandReimb: G24, roiAvgCapital: G25, headlineROI: G26,
     annualizedROI: G27, loanFeeBasis: G28, peakWithFloat: G30,
-    drawRows, months, sensitivity, drawPctCheck, budgetCheck,
+    drawRows, months, sensitivity, drawPctCheck, budgetCheck, outOfPeriod,
   };
 }
 

@@ -866,6 +866,12 @@ function renderDealResults(deal, holder) {
     warns.push(`Os percentuais dos draws ativos somam ${fmtPct1.format(r.drawPctCheck)} (deveriam somar 100%).`);
   }
 
+  for (const o of r.outOfPeriod) {
+    warns.push(o.early
+      ? `O draw ${o.num} está datado de ${dateLabel(o.payDate)}, antes do closing (${dateLabel(Model.parseDate(deal.closing))}). Ele foi contado no primeiro mês do deal. Se o projeto começou antes, ajuste a data de closing para o prazo e o retorno anualizado ficarem certos.`
+      : `O draw ${o.num} está datado de ${dateLabel(o.payDate)}, depois da venda (${dateLabel(Model.parseDate(deal.saleDate))}). Ele foi contado no mês da venda. Confira a data do draw ou a data de venda.`);
+  }
+
   const basisLabel = { 'Peak Cash': 'peak cash', 'After Land Reimbursement': 'após land reimb.', 'Average Capital Deployed': 'capital médio' }[r.resolved.basis];
 
   holder.innerHTML = `
