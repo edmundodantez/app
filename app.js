@@ -1,5 +1,5 @@
 'use strict';
-/* global Model, Seed, Pdf */
+/* global Model, Seed, Pdf, Cloud, renderInvestors */
 
 /* ===== Estado ===== */
 const STORE_KEY = 'investcalc-re-v1';
@@ -17,6 +17,9 @@ function migrate(s) {
     }
   }
   if (!s.calc) s.calc = freshCalcDeal();
+  // dados de investidores (imóveis ofertados, clientes, empréstimos de credores)
+  for (const k of ['properties', 'clients', 'loans']) if (!Array.isArray(s[k])) s[k] = [];
+  if (!s.profile) s.profile = { company: '', contact: '' };
   return s;
 }
 function freshCalcDeal() {
@@ -31,11 +34,24 @@ function loadState() {
   return null;
 }
 let state = loadState()
-  || { params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS), calc: freshCalcDeal() };
+  || migrate({ params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS), calc: freshCalcDeal() });
 let currentDealId = null;
 
-function save() {
+// grava só no aparelho
+function persist() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { /* sem espaço */ }
+}
+// grava no aparelho e agenda o envio para a nuvem (se conectada)
+function save() {
+  persist();
+  if (typeof Cloud !== 'undefined') Cloud.markDirty();
+}
+// troca o estado inteiro (dados vindos da nuvem ou de um backup)
+function replaceState(s) {
+  if (!s || !s.params || !Array.isArray(s.deals)) throw new Error('formato');
+  state = migrate(s);
+  currentDealId = null;
+  persist();
 }
 
 /* ===== Formatação ===== */
@@ -102,6 +118,7 @@ function renderTab(tab) {
   else if (tab === 'dash') renderDashboard();
   else if (tab === 'deals') renderDealsTab();
   else if (tab === 'master') renderMaster();
+  else if (tab === 'inv') renderInvestors();
   else if (tab === 'config') renderConfig();
 }
 function renderAllVisible() {
@@ -606,14 +623,21 @@ async function shareAnalysis(deal) {
     return;
   }
   const bytes = Pdf.analysisPdf(buildAnalysisDoc(deal, r));
-  const slug = (deal.name || 'deal').toLowerCase().normalize('NFD')
-    .replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || 'deal';
-  const filename = 'analise-' + slug + '.pdf';
+  await sharePdf(bytes, 'analise-' + slugify(deal.name, 'deal') + '.pdf', 'Análise — ' + (deal.name || 'deal'));
+}
+
+function slugify(name, fallback) {
+  return (name || '').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') || fallback;
+}
+
+// abre a folha de compartilhamento com o PDF; sem ela (ex.: computador), baixa o arquivo
+async function sharePdf(bytes, filename, title) {
   const file = new File([bytes], filename, { type: 'application/pdf' });
 
   if (navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: 'Análise — ' + (deal.name || 'deal') });
+      await navigator.share({ files: [file], title });
       return;
     } catch (e) { if (e && e.name === 'AbortError') return; /* cancelado pelo usuário */ }
   }
@@ -889,6 +913,17 @@ function renderConfig() {
       </table></div>
     </div>
     <div class="card">
+      <h2>PDFs para investidores</h2>
+      <p class="hint">Aparecem no cabeçalho e no rodapé das ofertas e dos extratos enviados aos clientes.</p>
+      <div class="field-grid">
+        <label class="field"><span>Nome da empresa</span><div class="input-wrap">
+          <input type="text" data-prof="company" value="${esc(state.profile.company)}" placeholder="InvestCalc" autocomplete="off"></div></label>
+        <label class="field"><span>Contato (telefone ou e-mail)</span><div class="input-wrap">
+          <input type="text" data-prof="contact" value="${esc(state.profile.contact)}" autocomplete="off"></div></label>
+      </div>
+    </div>
+    <div class="card" id="cloud-card"></div>
+    <div class="card">
       <h2>Dados</h2>
       <div class="row-gap wrap">
         <button class="mini-btn" id="export-json">Exportar dados</button>
@@ -896,8 +931,13 @@ function renderConfig() {
         <button class="mini-btn danger" id="reset-seed">Restaurar planilha original</button>
       </div>
       <input type="file" id="import-file" accept="application/json" hidden>
-      <p class="hint">Exportar gera um arquivo JSON com todos os deals e parâmetros (backup ou transferência entre aparelhos). Restaurar volta aos 10 deals importados de Edmundo_Cashflow.xlsx.</p>
+      <p class="hint">Exportar gera um arquivo JSON com tudo — deals, parâmetros, imóveis, clientes e empréstimos (backup). Restaurar volta aos 10 deals e parâmetros de Edmundo_Cashflow.xlsx; imóveis, clientes e empréstimos não são apagados.</p>
     </div>`;
+
+  if (typeof Cloud !== 'undefined') Cloud.renderCard(el.querySelector('#cloud-card'));
+  el.querySelectorAll('[data-prof]').forEach((input) => {
+    input.addEventListener('change', () => { state.profile[input.dataset.prof] = input.value.trim(); save(); });
+  });
 
   el.querySelectorAll('[data-pk]').forEach((input) => {
     input.addEventListener('change', () => {
@@ -933,9 +973,7 @@ function renderConfig() {
     if (!file) return;
     file.text().then((txt) => {
       try {
-        const s = JSON.parse(txt);
-        if (!s.params || !Array.isArray(s.deals)) throw new Error('formato');
-        state = s;
+        replaceState(JSON.parse(txt));
         save();
         renderConfig();
         alert('Dados importados.');
@@ -945,8 +983,8 @@ function renderConfig() {
     });
   });
   el.querySelector('#reset-seed').addEventListener('click', () => {
-    if (confirm('Substituir TODOS os dados atuais pelos deals originais da planilha?')) {
-      state = { params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS), calc: freshCalcDeal() };
+    if (confirm('Substituir os deals e parâmetros atuais pelos originais da planilha? (Imóveis, clientes e empréstimos são mantidos.)')) {
+      Object.assign(state, { params: clone(Model.DEFAULT_PARAMS), deals: clone(Seed.SEED_DEALS), calc: freshCalcDeal() });
       save();
       currentDealId = null;
       renderConfig();
@@ -955,7 +993,7 @@ function renderConfig() {
 }
 
 /* ===== Início ===== */
-save();
+persist();
 window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', renderAllVisible);
 renderCalc();
 

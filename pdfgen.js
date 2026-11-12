@@ -281,7 +281,148 @@ function analysisPdf(doc) {
   return buildPdf(pages);
 }
 
-const Pdf = { buildPdf, analysisPdf };
+/* ===== Relatório genérico em blocos, com quebra de página automática ===== */
+// larguras reais da Helvetica (em) para números e pontuação: alinha colunas à direita
+const NUM_W = { '$': 0.556, ',': 0.278, '.': 0.278, ' ': 0.278, '-': 0.333, '%': 0.889,
+  '(': 0.333, ')': 0.333, '/': 0.278, ':': 0.278, '+': 0.584, '—': 1, '–': 0.556 };
+function measure(s, size, bold) {
+  let w = 0;
+  for (const ch of String(s)) {
+    if (ch >= '0' && ch <= '9') w += 0.556;
+    else if (NUM_W[ch] != null) w += NUM_W[ch];
+    else if (ch >= 'A' && ch <= 'Z') w += bold ? 0.72 : 0.68;
+    else w += bold ? 0.56 : 0.52;
+  }
+  return w * size;
+}
+function wrapText(text, maxChars) {
+  const lines = [];
+  for (const para of String(text).split(/\n/)) {
+    let line = '';
+    for (const word of para.split(/\s+/)) {
+      if (line && (line + ' ' + word).length > maxChars) { lines.push(line); line = word; }
+      else line = line ? line + ' ' + word : word;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+function clip(s, maxW, size, bold) {
+  let str = String(s);
+  if (measure(str, size, bold) <= maxW) return str;
+  while (str.length > 1 && measure(str + '…', size, bold) > maxW) str = str.slice(0, -1);
+  return str.trimEnd() + '…';
+}
+
+/*
+ * doc: { title, subtitle, footer, blocks: [
+ *   { type:'heading', text }
+ *   { type:'rows', rows: [[label, value, color?]] }
+ *   { type:'tiles', tiles: [[label, value, color?]] }          — até 4 por linha
+ *   { type:'table', cols: [{label, x, align?:'right', w?}], rows, strongRows?: [i], empty? }
+ *   { type:'text', text, size?, color?:'muted' }
+ *   { type:'gap', h } ] }
+ * Em colunas align:'right', x é a borda direita da coluna.
+ */
+function reportPdf(doc) {
+  const pages = [];
+  let items, y;
+  const BOTTOM = 62;
+  const newPage = () => {
+    items = [];
+    pages.push(items);
+    if (pages.length === 1) {
+      y = 792 - 64;
+      items.push({ t: 'text', x: M, y, s: doc.title, font: 'F2', size: doc.title.length > 40 ? 14 : 18 });
+      y -= 16;
+      items.push({ t: 'text', x: M, y, s: doc.subtitle, size: 9, color: MUTED });
+      y -= 8;
+      items.push({ t: 'line', x1: M, y1: y, x2: RIGHT, y2: y, w: 1, color: RULE });
+      y -= 26;
+    } else {
+      y = pageHeader(items, doc.title + ' · ' + doc.subtitle);
+    }
+  };
+  const need = (h) => { if (y - h < BOTTOM) newPage(); };
+  newPage();
+
+  const cellAt = (col, text, size, bold, color) => {
+    const s = col.w ? clip(text, col.w, size, bold) : String(text);
+    const x = col.align === 'right' ? col.x - measure(s, size, bold) : col.x;
+    items.push({ t: 'text', x, y, s, font: bold ? 'F2' : 'F1', size, color });
+  };
+
+  for (const b of doc.blocks) {
+    if (b.type === 'heading') {
+      need(70);
+      y = sectionHeading(items, y, b.text);
+    } else if (b.type === 'rows') {
+      for (const [label, value, color] of b.rows) {
+        need(16);
+        const vx = String(value).length > 44 ? 190 : 285;
+        items.push({ t: 'text', x: M, y, s: label, size: 9, color: GRAY });
+        items.push({ t: 'text', x: vx, y, s: clip(value, RIGHT - vx, 10), size: 10, color: valColor(color) });
+        y -= 15.5;
+      }
+      y -= 10;
+    } else if (b.type === 'tiles') {
+      const per = Math.min(4, b.tiles.length);
+      const w = (RIGHT - M) / per;
+      for (let i = 0; i < b.tiles.length; i += per) {
+        need(46);
+        b.tiles.slice(i, i + per).forEach(([label, value, color], k) => {
+          const x = M + k * w;
+          items.push({ t: 'text', x, y, s: clip(label, w - 8, 8), size: 8, color: MUTED });
+          items.push({ t: 'text', x, y: y - 16, s: clip(value, w - 8, 13, true), font: 'F2', size: 13, color: valColor(color) });
+        });
+        y -= 42;
+      }
+    } else if (b.type === 'table') {
+      const header = () => {
+        for (const col of b.cols) cellAt(col, col.label, 8, false, MUTED);
+        y -= 5;
+        items.push({ t: 'line', x1: M, y1: y, x2: RIGHT, y2: y, w: 0.4, color: RULE });
+        y -= 12;
+      };
+      need(48);
+      header();
+      if (!b.rows.length && b.empty) {
+        items.push({ t: 'text', x: M, y, s: b.empty, size: 9, color: MUTED });
+        y -= 14;
+      }
+      b.rows.forEach((row, ri) => {
+        if (y - 14 < BOTTOM) { newPage(); header(); }
+        const strong = (b.strongRows || []).includes(ri);
+        row.forEach((cell, ci) => {
+          const [text, color] = Array.isArray(cell) ? cell : [cell, undefined];
+          cellAt(b.cols[ci], text, 9, strong, valColor(color));
+        });
+        y -= 14;
+      });
+      y -= 12;
+    } else if (b.type === 'text') {
+      const size = b.size || 9;
+      for (const line of wrapText(b.text, Math.floor((RIGHT - M) / (size * 0.5)))) {
+        need(size + 4);
+        items.push({ t: 'text', x: M, y, s: line, size, color: b.color === 'muted' ? MUTED : GRAY });
+        y -= size + 3.5;
+      }
+      y -= 8;
+    } else if (b.type === 'gap') {
+      y -= b.h || 10;
+    }
+  }
+
+  pages.forEach((p, i) => {
+    p.push({ t: 'line', x1: M, y1: 50, x2: RIGHT, y2: 50, w: 0.4, color: RULE });
+    if (doc.footer) p.push({ t: 'text', x: M, y: 38, s: clip(doc.footer, RIGHT - M - 50, 7.5), size: 7.5, color: MUTED });
+    const pg = `${i + 1} / ${pages.length}`;
+    p.push({ t: 'text', x: RIGHT - measure(pg, 7.5), y: 38, s: pg, size: 7.5, color: MUTED });
+  });
+  return buildPdf(pages);
+}
+
+const Pdf = { buildPdf, analysisPdf, reportPdf };
 if (typeof module !== 'undefined' && module.exports) module.exports = Pdf;
 else global.Pdf = Pdf;
 })(typeof window !== 'undefined' ? window : globalThis);

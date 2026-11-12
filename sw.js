@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'investcalc-v6';
+const CACHE = 'investcalc-v7';
 const ASSETS = [
   './',
   './index.html',
@@ -9,6 +9,10 @@ const ASSETS = [
   './seed.js',
   './pdfgen.js',
   './app.js',
+  './investors.js',
+  './reports.js',
+  './investors-ui.js',
+  './cloud.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -31,6 +35,8 @@ self.addEventListener('activate', (ev) => {
 // mas pega atualizações assim que houver conexão.
 self.addEventListener('fetch', (ev) => {
   if (ev.request.method !== 'GET') return;
+  // só os arquivos do app passam pelo cache — a nuvem (outra origem) vai direto à rede
+  if (new URL(ev.request.url).origin !== self.location.origin) return;
   ev.respondWith(
     fetch(ev.request)
       .then((resp) => {

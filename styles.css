@@ -397,3 +397,150 @@ summary {
   vertical-align: -2px;
   margin-right: 2px;
 }
+
+/* ===== Investidores ===== */
+.field.wide { grid-column: 1 / -1; }
+.input-wrap textarea {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  padding: 10px 0;
+  outline: none;
+  resize: vertical;
+}
+.input-wrap select {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  padding: 10px 0;
+  outline: none;
+  min-width: 0;
+}
+
+.seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--page);
+}
+.seg-btn {
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 550;
+  padding: 9px 6px;
+  border-radius: 9px;
+  cursor: pointer;
+}
+.seg-btn.on { background: var(--surface-1); color: var(--accent); box-shadow: 0 0 0 1px var(--border); }
+
+.chip-tag {
+  font-size: 0.7rem;
+  font-weight: 550;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
+.chip-tag.st-available { color: var(--good-text); }
+.chip-tag.st-active, .chip-tag.k-lender { color: var(--accent); }
+
+.deal-item.static { cursor: default; }
+.deal-item-bottom { line-height: 1.45; }
+
+.lang-select {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.82rem;
+  padding: 7px 8px;
+  max-width: 100%;
+}
+
+.pay-editor td, .pay-editor th { text-align: left; padding: 5px 4px; }
+.pay-editor select {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--page);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.78rem;
+  padding: 5px 4px;
+  max-width: 9.5em;
+}
+.pay-editor td:nth-child(2) input { min-width: 0; }
+.x-btn {
+  border: 0;
+  background: transparent;
+  color: var(--bad-text);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+
+.cloud-status { font-size: 0.85rem; margin: 6px 0 10px; }
+.cloud-status .dot { margin-right: 6px; }
+pre.sql {
+  overflow-x: auto;
+  background: var(--page);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  user-select: all;
+}
+
+/* seis abas: rótulos menores para caber no iPhone */
+.tab-btn { font-size: 0.64rem; min-width: 0; }
+.tab-btn span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* computador: mais largura para tabelas e formulários */
+@media (min-width: 900px) {
+  main { max-width: 860px; }
+  .field-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.kv-wrap td { white-space: normal; }
+.kv-wrap td:last-child { overflow-wrap: anywhere; }
+.ledger { font-size: 0.76rem; }
+.ledger th, .ledger td { padding: 7px 4px; }
+.ledger th:nth-child(2), .ledger td:nth-child(2) { text-align: left; }
+.x-btn span { display: none; }
+
+/* celular: cada pagamento/lançamento vira um bloco em vez de uma linha larga */
+@media (max-width: 700px) {
+  .pay-editor, .pay-editor tbody { display: block; }
+  .pay-editor thead { display: none; }
+  .pay-editor tr {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px 10px;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--grid);
+  }
+  .pay-editor tr:first-child { padding-top: 2px; }
+  .pay-editor td { display: flex; flex-direction: column; gap: 3px; padding: 0; border: 0; min-width: 0; white-space: normal; }
+  .pay-editor td[data-label]::before { content: attr(data-label); font-size: 0.72rem; color: var(--text-secondary); }
+  .pay-editor td input, .pay-editor td select { width: 100%; max-width: none; min-width: 0; font-size: 0.9rem; padding: 8px; min-height: 38px; }
+  .pay-editor .cell-del { justify-content: flex-end; align-items: flex-start; }
+  .pay-editor .x-btn { font-size: 0.85rem; padding: 9px 0; }
+  .pay-editor .x-btn span { display: inline; }
+}
