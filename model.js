@@ -178,15 +178,21 @@ function computeDeal(deal, params) {
     const N = cash ? 0 : (inPeriod(saleDate) ? 0 : Pbal);                   // Loan Bal End
     const O = Math.max(0, -M);                                              // Cash Exposure
     const Q = (G17 == null) ? 0 : (end >= G17 ? O : 0);                     // helper pós-land-adv
-    months.push({ m, start, end, D, E, F, G, H, I, J, K, L, M, N, O, P: Pbal, Q });
+    // No mês da venda a planilha só enxerga o saldo depois da venda (zero). O que foi
+    // pago nesse mês antes da venda (terreno e draws datados até a data da venda)
+    // esteve de fato investido: Opre é essa exposição imediatamente antes da venda.
+    const Epre = !inPeriod(saleDate) ? 0
+      : drawRows.reduce((s, r) => s + (r.payDate != null && r.payDate <= saleDate && inPeriod(clamp(r.payDate)) ? r.amount : 0), 0);
+    const Opre = inPeriod(saleDate) ? Math.max(0, -(Mprev - D - Epre)) : 0;
+    months.push({ m, start, end, D, E, F, G, H, I, J, K, L, M, N, O, P: Pbal, Q, Opre });
     Mprev = M; Nprev = N;
   }
 
   const G11 = cash ? 0 : months.reduce((s, r) => s + r.F, 0);               // Total Interest
   const G12 = active ? holdCost * G19 : 0;                                  // Total Holding Costs
-  const G13 = active ? months.reduce((s, r) => Math.max(s, r.O), 0) : 0;    // Peak Cash Exposure
+  const G13 = active ? months.reduce((s, r) => Math.max(s, r.O, r.Opre), 0) : 0; // Peak Cash Exposure
   const G14 = !active ? 0
-    : (G17 == null ? G13 : months.reduce((s, r) => Math.max(s, r.Q), 0));   // Peak After Land Reimb
+    : (G17 == null ? G13 : months.reduce((s, r) => Math.max(s, r.Q, r.end >= G17 ? r.Opre : 0), 0)); // Peak After Land Reimb
   const posO = months.filter((r) => r.O > 0);
   const G15 = active && posO.length ? posO.reduce((s, r) => s + r.O, 0) / posO.length : 0; // Avg Capital
   let G16 = null;                                                           // Date of Peak
@@ -194,6 +200,8 @@ function computeDeal(deal, params) {
     let best = months[0];
     for (const r of months) if (r.O > best.O) best = r;
     G16 = best.end;
+    const last = months[months.length - 1];
+    if (last.Opre > best.O) G16 = saleDate;                                 // pico imediatamente antes da venda
   }
   let G18 = null;                                                           // First Reimbursement Date
   if (active && !cash) {
