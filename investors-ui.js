@@ -321,7 +321,8 @@ function renderPropertyDetail(el, p) {
           ${fld('Data da compra', inp(p, 'purchaseDate', 'date'))}
         </div>
         <h3 class="form-sec">Venda realizada</h3>
-        <p class="hint">Preencha quando o imóvel for vendido: o retorno passa de estimado para realizado.</p>
+        <p class="hint">Só depois da venda de fato: com preço <b>e</b> data preenchidos, o imóvel passa a "Vendido" e o retorno deixa de ser estimado.
+          Para a previsão, use a seção Venda estimada acima.</p>
         <div class="field-grid">
           ${fld('Preço de venda real', inp(p, 'soldPrice', 'money'))}
           ${fld('Data da venda', inp(p, 'soldDate', 'date'))}
@@ -396,7 +397,7 @@ function renderPropertyDetail(el, p) {
     const bytes = kind === 'overview' ? Decks.overviewPdf(p, lang, state.profile, state.params) : Decks.comparisonPdf(p, lang, state.profile, state.params);
     if (!bytes) {
       const S = Investors.financingScenarios(p, state.params, Model);
-      alert('Para gerar este PDF, preencha ' + S.missing.map((k) => SCEN_MISSING[k]).join(', ') + '.');
+      alert('Para gerar este PDF, preencha ' + scenMissingText(S) + '.');
       return;
     }
     sharePdf(bytes, slugify(p.name, 'imovel') + '-' + Decks.fileBase(kind, lang) + '.pdf', p.name || 'Imóvel');
@@ -444,14 +445,21 @@ function renderPropertyDetail(el, p) {
   });
 }
 
-const SCEN_MISSING = { sale: 'o preço de venda estimado', saleDate: 'a data estimada de venda',
-  landDate: 'a data de compra do terreno', constrStart: 'o início da construção', cost: 'o preço do terreno ou da construção' };
+const SCEN_MISSING = {
+  sale: 'o "Preço de venda estimado" (seção Venda estimada)',
+  saleDate: 'a "Data estimada de venda" (seção Venda estimada)',
+  landDate: 'a "Compra do terreno (closing)" (seção Investimento)',
+  constrStart: 'o "Início da construção" (seção Investimento)',
+  cost: 'o preço do terreno ou da construção (seção Investimento)',
+  saleOrder: 'uma data de venda posterior à compra do terreno — confira o ano das duas datas',
+};
+const scenMissingText = (S) => [...new Set(S.missing)].map((k) => SCEN_MISSING[k]).join('; ');
 // compara o retorno do mesmo imóvel pago em cash e com construction loan (modelo do Single Deal Analyzer)
 function scenariosCard(p) {
   const S = Investors.financingScenarios(p, state.params, Model);
   if (!S.ready) {
     return `<div class="card"><h2>Financiado × à vista</h2>
-      <p class="hint">Para comparar as duas opções, preencha ${S.missing.map((k) => SCEN_MISSING[k]).join(', ')}.</p></div>`;
+      <p class="hint">Para comparar as duas opções, preencha ${esc(scenMissingText(S))}.</p></div>`;
   }
   const { loan: a, cash: b, project: J } = S;
   const mon = (t) => monthLabel(t);

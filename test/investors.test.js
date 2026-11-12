@@ -6,6 +6,7 @@
 'use strict';
 const Inv = require('../investors.js');
 const Reports = require('../reports.js');
+const Decks = require('../decks.js');
 const Pdf = require('../pdfgen.js');
 
 let fails = 0;
@@ -145,8 +146,24 @@ check('delaney: caixa mês a mês à vista', dp.monthly.length === 19 && Math.ro
 near('delaney: sensibilidade base = lucro', dp.sensitivity.find((x) => x.scenario === 0).cash.profit, 393000);
 near('delaney: sensibilidade -10% à vista', dp.sensitivity[0].cash.profit, 259600);
 
+/* ---- data de venda: campo da venda realizada preenchido no lugar da estimativa, e datas invertidas ---- */
+const utah = Inv.makeProperty({ name: '1621 Utah', landPrice: 100000, constrBudget: 300000, estSalePrice: 600000,
+  landDate: '2026-12-01', constrStart: '2027-01-10', numDraws: 7 });
+check('sem nenhuma data de venda: pede a data', Inv.financingScenarios(utah, Model.DEFAULT_PARAMS, Model).missing.join() === 'saleDate');
+const utahSold = Object.assign({}, utah, { soldDate: '2027-12-01' });
+check('data só em "Venda realizada" serve de estimativa', Inv.financingScenarios(utahSold, Model.DEFAULT_PARAMS, Model).ready
+  && Inv.computeProperty(utahSold).status === 'available' && !Inv.computeProperty(utahSold).sold);
+check('e os PDFs são gerados', Decks.comparisonPdf(utahSold, 'pt', {}, Model.DEFAULT_PARAMS) !== null);
+check('data estimada continua valendo quando as duas existem',
+  Inv.computeProperty(Object.assign({}, utahSold, { estSaleDate: '2028-03-01' })).saleDate === '2028-03-01');
+for (const bad of ['2026-06-01', '0027-12-01', '2026-12-01']) {
+  const s = Inv.financingScenarios(Object.assign({}, utah, { estSaleDate: bad }), Model.DEFAULT_PARAMS, Model);
+  check(`venda em ${bad} (antes ou no dia da compra) é recusada com aviso`, !s.ready && s.missing.includes('saleOrder'));
+}
+check('venda no mês seguinte à compra funciona',
+  Decks.overviewPdf(Object.assign({}, utah, { estSaleDate: '2027-01-20' }), 'pt', {}, Model.DEFAULT_PARAMS) !== null);
+
 /* ---- PDFs de apresentação (Financiado vs À Vista e Visão Geral) ---- */
-const Decks = require('../decks.js');
 const pdfText = (bytes) => Buffer.from(bytes).toString('latin1');
 const pageCount = (txt) => (txt.match(/\/Type \/Page /g) || []).length;
 const validPdf = (label, txt) => {

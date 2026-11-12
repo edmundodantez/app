@@ -172,14 +172,16 @@ function computeProperty(p, asOfIso) {
   const upcoming = unpaid.filter((x) => x.dueDate).sort((a, b) => parseDate(a.dueDate) - parseDate(b.dueDate));
 
   const sold = !!p.soldDate && num(p.soldPrice) > 0;
-  const salePrice = sold ? num(p.soldPrice) : num(p.estSalePrice);
+  // sem venda realizada completa (preço + data), vale a estimativa; se só o campo da
+  // venda realizada foi preenchido, ele serve de estimativa em vez de ser ignorado
+  const salePrice = sold ? num(p.soldPrice) : (num(p.estSalePrice) || num(p.soldPrice));
   const saleCostPct = num(p.saleCostPct);
   const saleCosts = salePrice * saleCostPct;
   const netSale = salePrice - saleCosts;
   const hasSale = salePrice > 0;
   const profit = hasSale ? netSale - totalCost : 0;
   const roi = hasSale && totalCost > 0 ? profit / totalCost : 0;
-  const saleDate = sold ? p.soldDate : (p.estSaleDate || null);
+  const saleDate = sold ? p.soldDate : (p.estSaleDate || p.soldDate || null);
 
   // taxa anualizada: cada pagamento na data paga (ou prevista) e a venda líquida no fim
   let annualized = null, months = null;
@@ -281,6 +283,10 @@ function financingScenarios(p, params, Model, asOfIso) {
   if (!closing) missing.push('landDate');
   if (r.constrCost > 0 && !constrStart && draws.some((d) => !d.dateOverride)) missing.push('constrStart');
   if (r.landCost + r.constrCost <= 0) missing.push('cost');
+  // a venda precisa vir depois da compra do terreno (ex.: ano digitado errado)
+  if (r.saleDate && closing && !(parseDate(r.saleDate) > parseDate(closing))) missing.push('saleOrder');
+  if (closing && parseDate(closing) == null) missing.push('landDate');
+  if (r.saleDate && parseDate(r.saleDate) == null) missing.push('saleDate');
   if (missing.length) return { ready: false, missing };
 
   const other = r.otherCost;
