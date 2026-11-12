@@ -144,6 +144,23 @@ check('portfolio.peakExposure = startingCash - lowestBalance',
   check('drawDepoisDaVenda.saldoFinal', late.months[late.months.length - 1].M, ok.profit);
 }
 
+// último draw pago no mês da venda: o pico inclui esse draw (o caso do deal de Bradenton)
+{
+  const amounts = [187200, 16088, 34216.66, 14216.66, 14216.66, 14216.66, 14216.66, 14216.66];
+  const dates = ['2026-05-28', '2026-05-29', '2026-06-15', '2026-07-02', '2026-08-13', '2026-12-01', '2027-02-01', '2027-03-01'];
+  const deal = makeDeal({ id: 'brad2', name: 'Bradenton', status: 'Active', financing: 'Cash', basis: 'Average Capital Deployed',
+    closing: '2026-05-28', constrStart: '2026-05-28', saleDate: '2027-03-20', land: 0, constr: 308588, sale: 391992, numDraws: 8,
+    draws: amounts.map((a, i) => ({ pct: 0, offset: 0, amountOverride: a, dateOverride: dates[i], paidDate: dates[i] })) });
+  const r = Model.computeDeal(deal, Model.DEFAULT_PARAMS);
+  check('vendaNoMesDoUltimoDraw.pico = custo total', Math.round(r.peakExposure), 308588);
+  check('vendaNoMesDoUltimoDraw.lucro', Math.round(r.profit), 52045);
+  check('vendaNoMesDoUltimoDraw.dataDoPico', r.peakDate, Model.parseDate('2027-03-20'));
+  check('vendaNoMesDoUltimoDraw.semAvisos', r.outOfPeriod.length, 0);
+  // se o último draw for pago depois da venda, ele não entra no pico
+  deal.draws[7].paidDate = '2027-03-25';
+  check('drawDepoisDaVendaNoMesmoMes.pico', Math.round(Model.computeDeal(deal, Model.DEFAULT_PARAMS).peakExposure), 294371);
+}
+
 console.log(fails === 0
   ? 'OK — todos os testes passaram (exemplo do modelo novo + deals cash + invariantes)'
   : `${fails} teste(s) falharam`);
