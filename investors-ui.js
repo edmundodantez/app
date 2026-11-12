@@ -220,6 +220,9 @@ function propertyFromDeal(deal) {
   return Investors.makeProperty({
     name: deal.name || 'Novo imóvel', estSalePrice: deal.sale || 0, saleCostPct: r.resolved.saleCostPct,
     estSaleDate: deal.saleDate || null, payments,
+    landPrice: deal.land || null, constrBudget: deal.constr || null,
+    landDate: deal.closing || null, constrStart: deal.constrStart || null,
+    numDraws: payments.filter((x) => x.kind === 'draw').length || 7,
   });
 }
 
@@ -270,10 +273,23 @@ function renderPropertyDetail(el, p) {
           ${fld('Endereço', inp(p, 'address', 'text'), true)}
           ${fld('Quartos', inp(p, 'beds', 'num'))}
           ${fld('Banheiros', inp(p, 'baths', 'num'))}
-          ${fld('Área (sq ft)', inp(p, 'sqft', 'num'))}
+          ${fld('Tamanho do lote', inp(p, 'lotSize', 'text', 'ex.: 0.25 acre'))}
           ${fld('Construtor', inp(p, 'builder', 'text'))}
           ${fld('Descrição (sai no PDF)', inp(p, 'description', 'area'), true)}
         </div>
+        <h3 class="form-sec">Investimento</h3>
+        <p class="hint">Como no deal analyzer: terreno + construção (tamanho × preço por sq ft) + outros custos.</p>
+        <div class="field-grid">
+          ${fld('Preço do terreno', inp(p, 'landPrice', 'money'))}
+          ${fld('Tamanho da construção (sq ft)', inp(p, 'sqft', 'num'))}
+          ${fld('Construção por sq ft', inp(p, 'constrPerSqft', 'money'))}
+          ${fld('Orçamento de construção', inp(p, 'constrBudget', 'money', 'automático: tamanho × preço por sq ft'))}
+          ${fld('Outros custos (closing, taxas…)', inp(p, 'otherCosts', 'money'))}
+          ${fld('Número de draws', inp(p, 'numDraws', 'num'))}
+          ${fld('Compra do terreno (closing)', inp(p, 'landDate', 'date'))}
+          ${fld('Início da construção', inp(p, 'constrStart', 'date'))}
+        </div>
+        <p class="plan-line" id="plan-line"></p>
         <h3 class="form-sec">Venda estimada</h3>
         <div class="field-grid">
           ${fld('Preço de venda estimado', inp(p, 'estSalePrice', 'money'))}
@@ -299,22 +315,23 @@ function renderPropertyDetail(el, p) {
       <p class="hint">Terreno e draws que o cliente paga ao construtor. Preencha "Pago em" quando cada um for pago.</p>
       <div id="pay-table">${paymentsTable(p)}</div>
       <button class="ghost-btn" id="add-pay">+ Adicionar pagamento</button>
-      <details>
-        <summary>Gerar cronograma (terreno + draws iguais por mês)</summary>
-        <div class="field-grid" id="gen-form">
-          ${fld('Preço do terreno', '<input type="text" inputmode="decimal" id="gen-land" autocomplete="off">')}
-          ${fld('Pagamento do terreno', '<input type="date" id="gen-land-date">')}
-          ${fld('Orçamento da construção', '<input type="text" inputmode="decimal" id="gen-constr" autocomplete="off">')}
-          ${fld('Número de draws', '<input type="text" inputmode="numeric" id="gen-n" value="7" autocomplete="off">')}
-          ${fld('Data do 1º draw', '<input type="date" id="gen-start">')}
-        </div>
-        <button class="ghost-btn" id="gen-go">Gerar cronograma</button>
-      </details>
+      <button class="ghost-btn" id="gen-go">Gerar cronograma a partir do investimento</button>
+      <p class="hint">Cria o pagamento do terreno, dos outros custos e os draws da construção com os valores e datas do
+        investimento acima. Com ${state.params.drawSchedule.filter((d) => d.pct > 0).length} draws, usa as etapas e
+        percentuais do cronograma padrão (Ajustes); com outro número, divide em draws iguais por mês.</p>
     </div>
     <div id="prop-results"></div>`;
 
   const results = el.querySelector('#prop-results');
-  const refresh = () => renderPropertyResults(results, p);
+  const refresh = () => {
+    const plan = Investors.planOf(p);
+    const fixed = p.constrBudget !== null && p.constrBudget !== undefined && p.constrBudget !== '';
+    const how = fixed ? 'orçamento fixo'
+      : (p.sqft && p.constrPerSqft ? `${fmtNum.format(p.sqft)} sq ft × ${money(p.constrPerSqft)}` : 'informe tamanho e preço por sq ft');
+    el.querySelector('#plan-line').innerHTML = `Terreno <b>${money(plan.land)}</b> + construção <b>${money(plan.constr)}</b> (${esc(how)})`
+      + (plan.other ? ` + outros <b>${money(plan.other)}</b>` : '') + ` = investimento de <b>${money(plan.total)}</b>`;
+    renderPropertyResults(results, p);
+  };
   const bindPayRows = () => {
     const holder = el.querySelector('#pay-table');
     bindRows(holder, p.payments, refresh);
@@ -351,13 +368,11 @@ function renderPropertyDetail(el, p) {
     save(); redrawPays();
   });
   el.querySelector('#gen-go').addEventListener('click', () => {
-    const land = parseNum(el.querySelector('#gen-land').value) || 0;
-    const constr = parseNum(el.querySelector('#gen-constr').value) || 0;
-    const draws = parseNum(el.querySelector('#gen-n').value) || 0;
-    if (land <= 0 && constr <= 0) { alert('Informe o preço do terreno e/ou o orçamento da construção.'); return; }
-    if (p.payments.length && !confirm('Substituir os pagamentos atuais deste imóvel pelo novo cronograma?')) return;
-    p.payments = Investors.buildSchedule({ land, constr, draws,
-      landDate: el.querySelector('#gen-land-date').value || null, startIso: el.querySelector('#gen-start').value || null });
+    if (Investors.planOf(p).total <= 0) { alert('Preencha o investimento (preço do terreno e/ou a construção) antes de gerar o cronograma.'); return; }
+    const anyPaid = p.payments.some((x) => x.paidDate);
+    if (p.payments.length && !confirm('Substituir os pagamentos atuais deste imóvel pelo novo cronograma?'
+      + (anyPaid ? ' As datas de pagamento já lançadas serão apagadas.' : ''))) return;
+    p.payments = Investors.planSchedule(p, state.params.drawSchedule);
     save(); redrawPays();
   });
   el.querySelector('#prop-pdf').addEventListener('click', () => {
@@ -375,6 +390,10 @@ function renderPropertyResults(holder, p) {
   holder.innerHTML = `
     <div class="card">
       <div class="row-between"><h2>Retorno${est}</h2>${chip(PROP_STATUS[r.status], 'st-' + r.status)}</div>
+      ${Math.abs(r.scheduleDiff) >= 1 ? `<div class="warn-box">O cronograma de pagamentos soma <b>${money(r.totalCost)}</b>, mas o investimento
+        planejado é de <b>${money(r.plan.total)}</b>. Os cálculos usam o cronograma. Para alinhar, ajuste os pagamentos ou toque em
+        "Gerar cronograma a partir do investimento".</div>` : ''}
+      ${!r.hasSchedule && r.totalCost > 0 ? '<p class="hint">Valores do plano do investimento. Gere o cronograma de pagamentos para acompanhar os draws e calcular o retorno anualizado.</p>' : ''}
       ${r.overdueAmount > 0 ? `<div class="warn-box">${r.overdue.length} pagamento(s) vencido(s) sem data de pagamento: <b>${money(r.overdueAmount)}</b>.</div>` : ''}
       <div class="stat-row">
         ${tile('Investimento total', money(r.totalCost))}
@@ -395,6 +414,9 @@ function renderPropertyResults(holder, p) {
         ${r.hasSale ? kvRow(r.sold ? 'Preço de venda' : 'Preço de venda estimado', money(r.salePrice))
           + kvRow(`Custos de venda (${fmtPct2.format(r.saleCostPct)})`, money(r.saleCosts))
           + kvRow('Venda líquida', money(r.netSale)) : ''}
+        ${r.constrPerSqft != null ? kvRow('Construção por sq ft', money(r.constrPerSqft)) : ''}
+        ${r.costPerSqft != null ? kvRow('Investimento total por sq ft', money(r.costPerSqft)) : ''}
+        ${r.salePerSqft != null ? kvRow('Venda por sq ft', money(r.salePerSqft)) : ''}
         ${r.months != null ? kvRow('Prazo', `${fmtNum.format(Math.round(r.months * 10) / 10)} meses`) : ''}
       </tbody></table></div>
       ${r.hasSale ? '' : '<p class="hint">Informe o preço de venda estimado para calcular o retorno.</p>'}

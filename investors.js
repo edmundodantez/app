@@ -29,7 +29,10 @@ const newId = (prefix) => `${prefix}-${Date.now().toString(36)}${(seq++).toStrin
 /* ===== Fábricas ===== */
 const makeProperty = (over) => Object.assign({
   id: newId('prop'), name: '', address: '', city: '', description: '',
-  beds: null, baths: null, sqft: null, builder: '',
+  beds: null, baths: null, sqft: null, lotSize: '', builder: '',
+  // plano do investimento (como no deal analyzer)
+  landPrice: null, constrPerSqft: null, constrBudget: null, otherCosts: null,
+  landDate: null, constrStart: null, numDraws: 7,
   estSalePrice: 0, saleCostPct: 0.08, estSaleDate: null,
   clientId: null, purchaseDate: null,
   payments: [],            // { id, kind:'land'|'draw'|'other', desc, amount, dueDate, paidDate }
@@ -80,6 +83,52 @@ function buildSchedule({ land, constr, draws, landDate, startIso }) {
   return out;
 }
 
+/* Plano do investimento: terreno, construção (orçamento fixo ou sq ft × $/sq ft) e outros custos. */
+function planOf(p) {
+  const land = num(p.landPrice);
+  const fixed = p.constrBudget !== null && p.constrBudget !== undefined && p.constrBudget !== '';
+  const constrAuto = num(p.sqft) * num(p.constrPerSqft);
+  const constr = fixed ? num(p.constrBudget) : constrAuto;
+  const other = num(p.otherCosts);
+  return { land, constr, constrAuto, other, total: land + constr + other };
+}
+
+const addMonths = (t, n) => {
+  const d = new Date(t);
+  const target = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + n, 1));
+  const last = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  return Date.UTC(target.getUTCFullYear(), target.getUTCMonth(), Math.min(d.getUTCDate(), last));
+};
+
+/*
+ * Cronograma de pagamentos a partir do plano: terreno na compra, outros custos
+ * junto, e a construção em draws. Se drawSchedule (o cronograma padrão dos
+ * deals: % e mês de cada draw) tiver exatamente numDraws etapas somando 100%,
+ * usa essas % e meses a partir do início da obra; senão, draws iguais por mês.
+ */
+function planSchedule(p, drawSchedule) {
+  const plan = planOf(p);
+  const out = [];
+  if (plan.land > 0) out.push(makePayment({ kind: 'land', desc: 'Land', amount: plan.land, dueDate: p.landDate || null }));
+  if (plan.other > 0) out.push(makePayment({ kind: 'other', desc: 'Other costs', amount: plan.other, dueDate: p.landDate || null }));
+  const n = Math.max(1, Math.round(num(p.numDraws)) || 1);
+  if (plan.constr > 0) {
+    const start = parseDate(p.constrStart);
+    const std = (drawSchedule || []).filter((d) => num(d.pct) > 0);
+    const useStd = std.length === n && Math.abs(std.reduce((s, d) => s + num(d.pct), 0) - 1) < 1e-6;
+    let left = plan.constr;
+    for (let i = 0; i < n; i++) {
+      const share = useStd ? num(std[i].pct) : 1 / n;
+      const amount = i === n - 1 ? Math.round(left * 100) / 100 : Math.round(plan.constr * share * 100) / 100;
+      left -= amount;
+      const months = useStd ? Math.trunc(num(std[i].offset)) : i;
+      out.push(makePayment({ kind: 'draw', desc: useStd && std[i].desc ? std[i].desc : `Draw ${i + 1}`, amount,
+        dueDate: start != null ? isoDate(addMonths(start, months)) : null }));
+    }
+  }
+  return out;
+}
+
 /* ===== XIRR (taxa anual que zera o VPL de fluxos datados) ===== */
 function xirr(flows) {
   if (flows.length < 2) return null;
@@ -105,7 +154,10 @@ function computeProperty(p, asOfIso) {
   const pays = (p.payments || []).map((x) => Object.assign({}, x, { amount: num(x.amount) }));
   const sumIf = (f) => pays.reduce((s, x) => s + (f(x) ? x.amount : 0), 0);
 
-  const totalCost = sumIf(() => true);
+  // com cronograma lançado, ele manda; sem cronograma, vale o plano do investimento
+  const plan = planOf(p);
+  const hasSchedule = pays.some((x) => x.amount > 0);
+  const totalCost = hasSchedule ? sumIf(() => true) : plan.total;
   const paid = sumIf((x) => !!x.paidDate);
   const unpaid = pays.filter((x) => !x.paidDate && x.amount > 0);
   const overdue = unpaid.filter((x) => x.dueDate && parseDate(x.dueDate) < asOf);
@@ -133,14 +185,21 @@ function computeProperty(p, asOfIso) {
   return {
     status: sold ? 'sold' : (p.clientId ? 'active' : 'available'),
     sold, totalCost, paid, pending: totalCost - paid,
-    landCost: sumIf((x) => x.kind === 'land'),
-    constrCost: sumIf((x) => x.kind === 'draw'),
-    otherCost: sumIf((x) => x.kind !== 'land' && x.kind !== 'draw'),
+    landCost: hasSchedule ? sumIf((x) => x.kind === 'land') : plan.land,
+    constrCost: hasSchedule ? sumIf((x) => x.kind === 'draw') : plan.constr,
+    otherCost: hasSchedule ? sumIf((x) => x.kind !== 'land' && x.kind !== 'draw') : plan.other,
+    plan, hasSchedule,
+    // cronograma lançado diferente do plano (ex.: plano alterado depois de gerar o cronograma)
+    scheduleDiff: hasSchedule && plan.total > 0 ? Math.round((sumIf(() => true) - plan.total) * 100) / 100 : 0,
+    sqft: num(p.sqft),
     paidPct: totalCost > 0 ? paid / totalCost : 0,
     overdue, overdueAmount: overdue.reduce((s, x) => s + x.amount, 0),
     nextDue: upcoming[0] || null,
     salePrice, saleCostPct, saleCosts, netSale, saleDate, hasSale,
     profit, roi, annualized, months,
+    constrPerSqft: num(p.sqft) > 0 ? (hasSchedule ? sumIf((x) => x.kind === 'draw') : plan.constr) / num(p.sqft) : null,
+    costPerSqft: num(p.sqft) > 0 ? totalCost / num(p.sqft) : null,
+    salePerSqft: num(p.sqft) > 0 && hasSale ? salePrice / num(p.sqft) : null,
   };
 }
 
@@ -242,7 +301,7 @@ function overview(properties, clients, loans, asOfIso) {
 
 const Investors = {
   parseDate, isoDate, todayIso, newId, num,
-  makeProperty, makePayment, makeClient, makeLoan, makeEntry, buildSchedule,
+  makeProperty, makePayment, makeClient, makeLoan, makeEntry, buildSchedule, planOf, planSchedule,
   xirr, computeProperty, computeLoan, propertyMatchesClient, clientSummary, overview,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Investors;

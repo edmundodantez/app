@@ -45,10 +45,13 @@ Reproduz o modelo das planilhas, célula por célula:
   restauração dos 10 deals originais da planilha.
 
 - **Clientes** (investidores e credores) — `investors.js`, `investors-ui.js`:
-  - **Imóveis** disponíveis para oferecer: dados do imóvel, venda estimada e o
-    cronograma de pagamentos (terreno + draws que o cliente paga ao
-    construtor). Dá para criar um imóvel a partir de um deal existente ou gerar
-    o cronograma (terreno + N draws mensais).
+  - **Imóveis** disponíveis para oferecer, cadastrados como um investimento:
+    preço do terreno, tamanho da construção, preço de construção por sq ft (ou
+    orçamento fixo), outros custos, datas de compra e de início da obra, número
+    de draws e venda estimada. O cronograma de pagamentos (terreno + draws que
+    o cliente paga ao construtor) é gerado a partir desse plano, com as etapas
+    do cronograma padrão dos deals, e pode ser editado. Também dá para criar um
+    imóvel a partir de um deal existente.
   - **Clientes** que procuram imóveis (orçamento máximo e região): o app mostra
     quais imóveis disponíveis combinam com cada cliente e vice-versa. Ao
     atribuir um imóvel, você marca a data em que cada draw foi pago e vê
