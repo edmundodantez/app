@@ -213,7 +213,8 @@ function propertyFromDeal(deal) {
   for (const d of r.drawRows) {
     if (d.isOn && d.amount > 0) {
       payments.push(Investors.makePayment({ kind: 'draw', desc: d.desc, amount: Math.round(d.amount * 100) / 100,
-        dueDate: d.payDate != null ? Investors.isoDate(d.payDate) : null }));
+        dueDate: d.payDate != null ? Investors.isoDate(d.payDate) : null,
+        paidDate: d.paid ? Investors.isoDate(d.payDate) : null }));
     }
   }
   return Investors.makeProperty({

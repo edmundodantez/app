@@ -115,7 +115,9 @@ function computeDeal(deal, params) {
     const pct = val(src.pct, dflt.pct);
     const offset = val(src.offset, dflt.offset);
     const isOn = active && (i + 1) <= numDraws;                            // C
-    const override = parseDate(src.dateOverride);
+    // data em que o draw foi realmente pago: vale mais que a data fixa e que o cronograma
+    const paidOn = parseDate(src.paidDate);
+    const override = paidOn != null ? paidOn : parseDate(src.dateOverride);
     const payDate = override != null ? override
       : (isOn && constrStart != null ? edate(constrStart, Math.trunc(offset)) : null); // F
     const amount = !isOn ? 0
@@ -127,7 +129,7 @@ function computeDeal(deal, params) {
     // O33:O42 — reembolso que cai no MESMO mês do pagamento (float de caixa dentro do mês)
     const sameMonthFloat = (isOn && !cash && payDate != null && reimb > 0 && reimbDate != null
       && eomonth(payDate) === eomonth(reimbDate)) ? reimb : 0;
-    drawRows.push({ num: i + 1, desc, pct, offset, isOn, payDate, amount, reimbDate, reimb, sameMonthFloat });
+    drawRows.push({ num: i + 1, desc, pct, offset, isOn, payDate, paid: isOn && paidOn != null, amount, reimbDate, reimb, sameMonthFloat });
   }
   const sumReimb = reimbCum;
 
