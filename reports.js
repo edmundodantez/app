@@ -30,7 +30,8 @@ const T = {
     committed: 'Total commitment', paidToDate: 'Paid to date', remaining: 'Remaining',
     propStatus: { available: 'Available', active: 'In progress', sold: 'Sold' },
     realized: 'Realized net profit',
-    loans: 'Loans', loan: 'Loan', rate: 'Interest rate', perYear: 'per year',
+    loans: 'Loans', loan: 'Loan', lender: 'Lender', startDate: 'Start date', loanStatement: 'Loan statement',
+    loanSummary: 'Position', transactions: 'Transactions', rate: 'Interest rate', perYear: 'per year',
     advanced: 'Total advanced', repaid: 'Principal repaid', principal: 'Principal outstanding',
     interestAccrued: 'Interest accrued to date', interestPaid: 'Interest paid', interestDue: 'Interest due',
     totalOwed: 'Total owed', date: 'Date', balance: 'Principal balance', note: 'Note',
@@ -59,7 +60,8 @@ const T = {
     committed: 'Compromisso total', paidToDate: 'Pago até hoje', remaining: 'A pagar',
     propStatus: { available: 'Disponível', active: 'Em andamento', sold: 'Vendido' },
     realized: 'Lucro líquido realizado',
-    loans: 'Empréstimos', loan: 'Empréstimo', rate: 'Taxa de juros', perYear: 'ao ano',
+    loans: 'Empréstimos', loan: 'Empréstimo', lender: 'Credor', startDate: 'Data de início', loanStatement: 'Extrato do empréstimo',
+    loanSummary: 'Posição', transactions: 'Lançamentos', rate: 'Taxa de juros', perYear: 'ao ano',
     advanced: 'Total emprestado', repaid: 'Principal devolvido', principal: 'Principal em aberto',
     interestAccrued: 'Juros acumulados até hoje', interestPaid: 'Juros pagos', interestDue: 'Juros a pagar',
     totalOwed: 'Total devido', date: 'Data', balance: 'Saldo do principal', note: 'Obs.',
@@ -195,6 +197,54 @@ function availableDoc(properties, lang, profile) {
   };
 }
 
+/* blocos de um empréstimo: posição e extrato de lançamentos */
+function loanBlocks(r, F) {
+  const L = F.L;
+  return [
+    { type: 'rows', rows: [
+      [L.rate, `${F.pct2(r.rate)} ${L.perYear}`],
+      [L.advanced, F.money2(r.advanced)],
+      [L.repaid, F.money2(r.repaid)],
+      [L.principal, F.money2(r.principal)],
+      [L.interestAccrued, F.money2(r.interestAccrued)],
+      [L.interestPaid, F.money2(r.interestPaid)],
+      [L.interestDue, F.money2(r.interestDue)],
+      [L.totalOwed, F.money2(r.totalOwed)],
+    ] },
+    { type: 'table', empty: L.noEntries,
+      cols: [{ label: L.date, x: 54 }, { label: L.type, x: 125, w: 150 },
+        { label: L.amount, x: 365, align: 'right' }, { label: L.balance, x: 462, align: 'right' },
+        { label: L.interestDue, x: 558, align: 'right' }],
+      rows: r.rows.map((x) => [F.date(x.date), L.entry[x.type] || x.type, F.money2(x.amount),
+        F.money2(x.balance), F.money2(x.interestDue)]) },
+    { type: 'text', text: L.interestBasis, size: 8, color: 'muted' },
+  ];
+}
+
+/* extrato de um único empréstimo, para enviar ao credor */
+function loanDoc(client, loan, profile, asOfIso) {
+  const F = fmt(client && client.lang === 'pt' ? 'pt' : 'en'), L = F.L;
+  const asOf = asOfIso || Inv.todayIso();
+  const r = Inv.computeLoan(loan, asOf);
+  const blocks = [
+    { type: 'rows', rows: [[L.lender, (client && client.name) || '—'], [L.startDate, F.date(r.firstDate)]] },
+    { type: 'tiles', tiles: [
+      [L.principal, F.money2(r.principal)],
+      [L.interestPaid, F.money2(r.interestPaid)],
+      [L.interestDue, F.money2(r.interestDue)],
+      [L.totalOwed, F.money2(r.totalOwed)],
+    ] },
+    { type: 'heading', text: L.loanSummary },
+    ...loanBlocks(r, F),
+  ];
+  blocks.splice(4, 0, { type: 'heading', text: L.transactions });
+  return {
+    title: loan.label || L.loan,
+    subtitle: `${brand(profile)} — ${L.loanStatement} · ${L.asOf} ${F.date(asOf)}`,
+    footer: footer(F, profile), blocks,
+  };
+}
+
 function statementDoc(client, properties, loans, profile, asOfIso) {
   const lang = client.lang === 'pt' ? 'pt' : 'en';
   const F = fmt(lang), L = F.L;
@@ -243,23 +293,7 @@ function statementDoc(client, properties, loans, profile, asOfIso) {
     ] });
     for (const { l, r } of S.loans) {
       blocks.push({ type: 'heading', text: l.label || L.loan });
-      blocks.push({ type: 'rows', rows: [
-        [L.rate, `${F.pct2(r.rate)} ${L.perYear}`],
-        [L.advanced, F.money2(r.advanced)],
-        [L.repaid, F.money2(r.repaid)],
-        [L.principal, F.money2(r.principal)],
-        [L.interestAccrued, F.money2(r.interestAccrued)],
-        [L.interestPaid, F.money2(r.interestPaid)],
-        [L.interestDue, F.money2(r.interestDue)],
-        [L.totalOwed, F.money2(r.totalOwed)],
-      ] });
-      blocks.push({ type: 'table', empty: L.noEntries,
-        cols: [{ label: L.date, x: 54 }, { label: L.type, x: 125, w: 150 },
-          { label: L.amount, x: 365, align: 'right' }, { label: L.balance, x: 462, align: 'right' },
-          { label: L.interestDue, x: 558, align: 'right' }],
-        rows: r.rows.map((x) => [F.date(x.date), L.entry[x.type] || x.type, F.money2(x.amount),
-          F.money2(x.balance), F.money2(x.interestDue)]) });
-      blocks.push({ type: 'text', text: L.interestBasis, size: 8, color: 'muted' });
+      blocks.push(...loanBlocks(r, F));
     }
   }
 
@@ -271,7 +305,7 @@ function statementDoc(client, properties, loans, profile, asOfIso) {
   };
 }
 
-const Reports = { propertyDoc, availableDoc, statementDoc };
+const Reports = { propertyDoc, availableDoc, statementDoc, loanDoc };
 if (typeof module !== 'undefined' && module.exports) module.exports = Reports;
 else global.Reports = Reports;
 })(typeof window !== 'undefined' ? window : globalThis);
