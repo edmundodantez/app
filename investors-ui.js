@@ -222,6 +222,15 @@ function propertyFromDeal(deal) {
   });
 }
 
+// Liga um imóvel disponível a um cliente: o imóvel sai dos disponíveis e o
+// cliente deixa de constar como "procurando", porque já pegou esse imóvel.
+function assignProperty(p, c) {
+  p.clientId = c.id;
+  if (!p.purchaseDate) p.purchaseDate = Investors.todayIso();
+  c.looking = false;
+  save();
+}
+
 /* ===== Imóvel ===== */
 function paymentsTable(p) {
   if (!p.payments.length) return '<p class="hint">Nenhum pagamento. Adicione o terreno e os draws, ou gere o cronograma abaixo.</p>';
@@ -317,7 +326,12 @@ function renderPropertyDetail(el, p) {
 
   bindForm(el.querySelector('#prop-form'), p, (k, final) => {
     if (k === 'name') el.querySelector('.deal-title').textContent = p.name || '(sem nome)';
-    if (k === 'clientId' && final) { renderPropertyDetail(el, p); return; }
+    if (k === 'clientId' && final) {
+      const c = state.clients.find((x) => x.id === p.clientId);
+      if (c) assignProperty(p, c);
+      renderPropertyDetail(el, p);
+      return;
+    }
     refresh();
   });
   bindPayRows();
@@ -398,9 +412,10 @@ function renderPropertyResults(holder, p) {
     </div>` : ''}`;
   holder.querySelectorAll('[data-open-client]').forEach((b) => b.addEventListener('click', () => invGo({ seg: 'clients', clientId: b.dataset.openClient })));
   holder.querySelectorAll('[data-assign]').forEach((b) => b.addEventListener('click', () => {
-    p.clientId = b.dataset.assign;
-    if (!p.purchaseDate) p.purchaseDate = Investors.todayIso();
-    save(); renderInvestors();
+    const c = state.clients.find((x) => x.id === b.dataset.assign);
+    if (!c || !confirm(`Atribuir "${p.name}" a ${c.name}? O imóvel sai dos disponíveis e o cliente deixa de constar como procurando.`)) return;
+    assignProperty(p, c);
+    renderInvestors();
   }));
 }
 
@@ -495,9 +510,35 @@ function renderClientResults(holder, c) {
   const S = Investors.clientSummary(c, state.properties, state.loans);
   const showProps = isInvestor(c) || S.props.length > 0;
   const showLoans = isLender(c) || S.loans.length > 0;
-  const matches = isInvestor(c) && c.looking
-    ? state.properties.map((p) => ({ p, r: Investors.computeProperty(p) })).filter(({ p, r }) => Investors.propertyMatchesClient(p, c, r)) : [];
-  let html = '';
+  // todos os imóveis disponíveis, com os que combinam com o cliente (orçamento e região) primeiro
+  const avail = !isInvestor(c) ? [] : state.properties.map((p) => ({ p, r: Investors.computeProperty(p) }))
+    .filter(({ r }) => r.status === 'available')
+    .map((x) => Object.assign(x, { fit: Investors.propertyMatchesClient(x.p, c, x.r) }))
+    .sort((a, b) => Number(b.fit) - Number(a.fit));
+  const availList = avail.length ? `<div class="deal-list">${avail.map(({ p, r, fit }) => `<div class="deal-item static">
+      <span class="deal-item-top"><span class="deal-name">${esc(p.name || '(sem nome)')}</span>
+        ${fit ? chip('Compatível', 'st-available') : chip('Fora do perfil')}</span>
+      <span class="deal-item-bottom">${esc([p.city, propLine(p, r)].filter(Boolean).join(' · '))}</span>
+      <span class="row-gap wrap item-actions">
+        <button class="mini-btn primary" data-assign="${esc(p.id)}">Atribuir a este cliente</button>
+        <button class="mini-btn" data-offer="${esc(p.id)}">PDF da oferta</button>
+        <button class="mini-btn" data-prop="${esc(p.id)}">Abrir</button>
+      </span>
+    </div>`).join('')}</div>`
+    : '<p class="hint">Nenhum imóvel disponível no momento. Cadastre um em Imóveis.</p>';
+  const assignCard = !isInvestor(c) ? '' : (c.looking
+    ? `<div class="card">
+        <h2>Atribuir um imóvel disponível</h2>
+        <p class="hint">Ao atribuir, o imóvel sai dos disponíveis e este cliente deixa de constar como procurando.
+          "Compatível" = dentro do orçamento e da região de interesse.</p>
+        ${availList}
+      </div>`
+    : `<div class="card"><details>
+        <summary>Atribuir outro imóvel disponível (${avail.length})</summary>
+        <p class="hint">Este cliente não está procurando no momento, mas você pode atribuir mais um imóvel a ele.</p>
+        ${availList}
+      </details></div>`);
+  let html = c.looking ? assignCard : '';
   if (showProps) {
     html += `<div class="card">
       <h2>Imóveis do cliente</h2>
@@ -514,19 +555,7 @@ function renderClientResults(holder, c) {
         <div class="deal-list">${S.props.map(({ p, r }) => propItem(p, r)).join('')}</div>`
         : '<p class="hint">Nenhum imóvel atribuído a este cliente.</p>'}
     </div>`;
-    if (c.looking) {
-      html += `<div class="card">
-        <h2>Imóveis disponíveis para este cliente</h2>
-        ${matches.length ? `<p class="hint">Disponíveis dentro do orçamento e da região de interesse.</p>
-          <div class="deal-list">${matches.map(({ p, r }) => `<div class="deal-item static">
-            <span class="deal-item-top"><span class="deal-name">${esc(p.name || '(sem nome)')}</span>
-              <button class="mini-btn" data-offer="${esc(p.id)}">PDF</button>
-              <button class="mini-btn" data-assign="${esc(p.id)}">Atribuir</button></span>
-            <span class="deal-item-bottom">${esc([p.city, propLine(p, r)].filter(Boolean).join(' · '))}</span>
-          </div>`).join('')}</div>`
-          : '<p class="hint">Nenhum imóvel disponível combina com o orçamento e a região deste cliente.</p>'}
-      </div>`;
-    }
+    if (!c.looking) html += assignCard;
   }
   if (showLoans) {
     html += `<div class="card">
@@ -553,10 +582,9 @@ function renderClientResults(holder, c) {
   holder.querySelectorAll('[data-loan]').forEach((b) => b.addEventListener('click', () => invGo({ seg: 'clients', clientId: c.id, loanId: b.dataset.loan })));
   holder.querySelectorAll('[data-assign]').forEach((b) => b.addEventListener('click', () => {
     const p = state.properties.find((x) => x.id === b.dataset.assign);
-    if (!p || !confirm(`Atribuir "${p.name}" a ${c.name}?`)) return;
-    p.clientId = c.id;
-    if (!p.purchaseDate) p.purchaseDate = Investors.todayIso();
-    save(); renderClientResults(holder, c);
+    if (!p || !confirm(`Atribuir "${p.name}" a ${c.name}? O imóvel sai dos disponíveis e o cliente deixa de constar como procurando.`)) return;
+    assignProperty(p, c);
+    renderInvestors(); // redesenha o formulário: "Procurando imóvel?" passa para Não
   }));
   holder.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
     const p = state.properties.find((x) => x.id === b.dataset.offer);
