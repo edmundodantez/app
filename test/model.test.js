@@ -104,6 +104,22 @@ check('master.finalBalance = startingCash + totalProfit',
 check('portfolio.peakExposure = startingCash - lowestBalance',
   dash.peakExposure, dash.startingCash - dash.lowestBalance);
 
+// "Pago em" de um draw: a data real vale mais que a data fixa e que o cronograma
+{
+  const base = SEED_DEALS.find((d) => d.id === 'pine');
+  const withPaid = (draws) => Model.computeDeal(Object.assign({}, base, { draws }), Model.DEFAULT_PARAMS);
+  const plan = withPaid([]);
+  const paid = withPaid([{}, {}, { dateOverride: '2026-12-20', paidDate: '2027-02-10' }]);
+  const fixed = withPaid([{}, {}, { dateOverride: '2027-02-10' }]);
+  check('paidDate.usaDataReal', paid.drawRows[2].payDate, Model.parseDate('2027-02-10'));
+  check('paidDate.marcaPago', Number(paid.drawRows[2].paid), 1);
+  check('paidDate.outrosSeguemPrevistos', Number(paid.drawRows[1].paid), 0);
+  check('paidDate.mesmoCalculoDaDataFixa.profit', paid.profit, fixed.profit);
+  check('paidDate.mesmoCalculoDaDataFixa.roi', paid.annualizedROI, fixed.annualizedROI);
+  check('paidDate.mudaOsJuros', Number(paid.totalInterest !== plan.totalInterest), 1);
+  check('semPaidDate.nadaMuda', Number(plan.drawRows.some((r) => r.paid)), 0);
+}
+
 console.log(fails === 0
   ? 'OK — todos os testes passaram (exemplo do modelo novo + deals cash + invariantes)'
   : `${fails} teste(s) falharam`);

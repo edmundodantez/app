@@ -536,10 +536,11 @@ function dealEditorBody(deal) {
       <p class="hint">Campos em branco usam o padrão global (aba Ajustes) — igual às células azuis ligadas à aba Parameters da planilha.</p>
       <form class="deal-form">${dealFormHtml(deal)}</form>
       <h3 class="form-sec">Draws (cronograma da obra)</h3>
-      <p class="hint">%/mês em branco usam o cronograma padrão. "Valor fixo" e "data fixa" sobrescrevem o cálculo, como na planilha.</p>
+      <p class="hint">%/mês em branco usam o cronograma padrão. "Valor fixo" e "data fixa" sobrescrevem o cálculo, como na planilha.
+        Preencha <b>Pago em</b> quando o draw for pago: o cashflow, os juros e o retorno passam a usar a data real.</p>
       <div class="table-wrap">
         <table class="draw-editor">
-          <thead><tr><th>#</th><th>Descrição</th><th>%</th><th>Mês</th><th>Valor fixo</th><th>Data fixa</th></tr></thead>
+          <thead><tr><th>#</th><th>Descrição</th><th>%</th><th>Mês</th><th>Valor fixo</th><th>Data fixa</th><th>Pago em</th></tr></thead>
           <tbody>
             ${Array.from({ length: 10 }, (_, i) => {
               const dr = (deal.draws && deal.draws[i]) || {};
@@ -552,6 +553,7 @@ function dealEditorBody(deal) {
                 <td><input type="text" inputmode="decimal" data-draw="${i}" data-dk="offset" value="${dr.offset != null ? esc(String(dr.offset)) : ''}" placeholder="${esc(String(sched.offset))}" size="3"></td>
                 <td><input type="text" inputmode="decimal" data-draw="${i}" data-dk="amountOverride" value="${dr.amountOverride != null ? esc(String(dr.amountOverride)) : ''}" placeholder="auto" size="8"></td>
                 <td><input type="date" data-draw="${i}" data-dk="dateOverride" value="${esc(dr.dateOverride || '')}"></td>
+                <td><input type="date" data-draw="${i}" data-dk="paidDate" value="${esc(dr.paidDate || '')}"></td>
               </tr>`;
             }).join('')}
           </tbody>
@@ -577,7 +579,7 @@ function attachDealEditor(root, deal, onChange) {
     deal.draws = deal.draws || [];
     while (deal.draws.length <= i) deal.draws.push({});
     const raw = input.value.trim();
-    if (dk === 'desc' || dk === 'dateOverride') { deal.draws[i][dk] = raw || null; return; }
+    if (dk === 'desc' || dk === 'dateOverride' || dk === 'paidDate') { deal.draws[i][dk] = raw || null; return; }
     if (raw === '') { deal.draws[i][dk] = null; return; }
     const n = parseNum(raw);
     if (!Number.isFinite(n)) return;
@@ -911,9 +913,10 @@ function renderDealResults(deal, holder) {
       <details>
         <summary>Draw schedule calculado</summary>
         <div class="table-wrap"><table>
-          <thead><tr><th>#</th><th>Draw</th><th>Pagamento</th><th>Valor</th><th>Reembolso</th><th>Valor reemb.</th></tr></thead>
+          <thead><tr><th>#</th><th>Draw</th><th>Pagamento</th><th>Situação</th><th>Valor</th><th>Reembolso</th><th>Valor reemb.</th></tr></thead>
           <tbody>${r.drawRows.filter((d) => d.isOn).map((d) => `<tr>
-            <td>${d.num}</td><td>${esc(d.desc)}</td><td>${dateLabel(d.payDate)}</td><td>${money(d.amount)}</td>
+            <td>${d.num}</td><td>${esc(d.desc)}</td><td>${dateLabel(d.payDate)}</td>
+            <td>${d.paid ? '<span class="badge paid">✓ Pago</span>' : 'Previsto'}</td><td>${money(d.amount)}</td>
             <td>${dateLabel(d.reimbDate)}</td><td>${r.cash ? '—' : money(d.reimb)}</td>
           </tr>`).join('')}</tbody>
         </table></div>

@@ -30,7 +30,9 @@ Reproduz o modelo das planilhas, célula por célula:
   advance no closing ou com atraso, LTC, juros, loan fees all-in (5% padrão,
   cobrindo origination + docs + underwriting + appraisal) mais seguro à parte,
   cronograma de até 10 draws com % e datas (incluindo valores e datas fixados
-  manualmente) e o KPI "Peak Exposure incl. Draw Float" do modelo novo.
+  manualmente, e a data em que cada draw foi realmente pago — "Pago em" — que
+  passa a valer no cashflow, nos juros e no retorno) e o KPI "Peak Exposure
+  incl. Draw Float" do modelo novo.
 - **KPIs por deal** — lucro projetado, ROI headline (na base escolhida: peak
   cash, após land reimbursement ou capital médio), ROI anualizado, pico de
   exposição de caixa, capital médio, juros totais, break-even, margem,
