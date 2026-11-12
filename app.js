@@ -303,7 +303,6 @@ function renderDashboard() {
     n: seekers.filter((c) => Investors.propertyMatchesClient(p, c, r)).length }));
   const seekerRows = seekers.map((c) => ({ c,
     n: avail.filter(({ p, r }) => Investors.propertyMatchesClient(p, c, r)).length }));
-  const months = d.master.months;
 
   const shortfall = d.lowestBalance < 0
     ? `<div class="warn-box">${icon('warn')}<span>O caixa projetado fica <b>negativo</b> (mínimo de <b>${money(d.lowestBalance)}</b>).
@@ -352,13 +351,7 @@ function renderDashboard() {
       </div>
     </div>
     <div class="dash-grid">
-      <div class="card span-2">
-        <div class="card-head"><div><h2>Caixa projetado</h2>
-          <p class="hint">Saldo mês a mês de todos os deals ativos. Abaixo de zero falta caixa.</p></div>
-          <button class="mini-btn" data-go="master">Ver cashflow</button></div>
-        ${months.length ? '<div class="viz-root"><div class="chart-holder" id="dash-chart"></div></div>'
-          : '<p class="empty">Nenhum deal ativo com datas preenchidas.</p>'}
-      </div>
+      <div class="dash-stack">
       <div class="card">
         <div class="card-head"><h2>Próximos pagamentos</h2>
           <button class="mini-btn" data-go="inv">Ver imóveis</button></div>
@@ -371,6 +364,18 @@ function renderDashboard() {
           </button>`).join('')}</div>
           ${due.length > 6 ? `<p class="hint">+ ${due.length - 6} outro(s) pagamento(s) em aberto.</p>` : ''}`
           : '<p class="empty">Nenhum pagamento de cliente em aberto.</p>'}
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Credores</h2><button class="mini-btn" data-go="inv" data-seg="clients">Ver clientes</button></div>
+        ${loans.length ? `<div class="rows">${loans.map(({ l, r }) => `
+          <button class="row-item" data-loan="${esc(l.id)}" data-client="${esc(l.clientId)}">
+            <span class="row-main"><b>${esc(nameOf(l.clientId) || 'Credor')}</b>
+              <small>${esc(l.label || 'Empréstimo')} · ${fmtPct2.format(r.rate)} a.a.</small></span>
+            <span class="row-side"><b>${money(r.principal)}</b><small>juros ${money(r.interestDue)}</small></span>
+          </button>`).join('')}</div>
+          <p class="hint">Juros de aproximadamente ${money(O.monthlyInterest)} por mês no saldo atual.</p>`
+          : '<p class="empty">Nenhum empréstimo lançado.</p>'}
+      </div>
       </div>
       <div class="card span-2">
         <div class="card-head"><h2>Deals</h2><button class="mini-btn" data-go="deals">Ver todos</button></div>
@@ -389,24 +394,8 @@ function renderDashboard() {
           </tbody>
         </table></div>
       </div>
-      <div class="card">
-        <div class="card-head"><h2>Credores</h2><button class="mini-btn" data-go="inv" data-seg="clients">Ver clientes</button></div>
-        ${loans.length ? `<div class="rows">${loans.map(({ l, r }) => `
-          <button class="row-item" data-loan="${esc(l.id)}" data-client="${esc(l.clientId)}">
-            <span class="row-main"><b>${esc(nameOf(l.clientId) || 'Credor')}</b>
-              <small>${esc(l.label || 'Empréstimo')} · ${fmtPct2.format(r.rate)} a.a.</small></span>
-            <span class="row-side"><b>${money(r.principal)}</b><small>juros ${money(r.interestDue)}</small></span>
-          </button>`).join('')}</div>
-          <p class="hint">Juros de aproximadamente ${money(O.monthlyInterest)} por mês no saldo atual.</p>`
-          : '<p class="empty">Nenhum empréstimo lançado.</p>'}
-      </div>
     </div>`;
 
-  if (months.length) {
-    renderLineChart(el.querySelector('#dash-chart'), null,
-      [{ name: 'Saldo de caixa projetado', color: cssVar('--series-1'), values: months.map((m) => m.balance) }],
-      months.map((m) => m.start));
-  }
   const openInv = (nav) => { Object.assign(invNav, { propId: null, clientId: null, loanId: null }, nav); goTab('inv'); };
   el.querySelectorAll('.row-link').forEach((tr) => tr.addEventListener('click', () => openDeal(tr.dataset.deal)));
   el.querySelectorAll('[data-go]').forEach((b) => b.addEventListener('click', () => {
