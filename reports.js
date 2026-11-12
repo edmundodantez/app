@@ -9,6 +9,7 @@
 (function (global) {
 'use strict';
 const Inv = (typeof module !== 'undefined' && module.exports) ? require('./investors.js') : global.Investors;
+const Mdl = (typeof module !== 'undefined' && module.exports) ? require('./model.js') : global.Model;
 
 const T = {
   en: {
@@ -40,6 +41,10 @@ const T = {
     interestBasis: 'Simple interest on the outstanding principal, accrued daily (365-day year).',
     disclaimer: 'Projected sale prices, profits and returns are estimates based on current assumptions and are not a guarantee of future results.',
     contact: 'Contact',
+    scenarios: 'Returns: cash vs. financed', cash: 'Cash', financed: 'Financed', roiOnCash: 'Return on cash invested',
+    annualizedRoi: 'Annualized return', cashAtClosing: 'Cash needed at closing', peakCash: 'Peak cash invested',
+    maxLoan: 'Maximum loan', loanFees: 'Loan fees', totalInterest: 'Total interest',
+    scenarioNote: 'Financed scenario assumes a construction loan at {ltc} loan-to-cost, {rate} annual interest and {fees} loan fees, over a {months}-month holding period. Annualized return is the return on cash invested divided by the holding period (simple, not compounded).',
   },
   pt: {
     locale: 'pt-BR',
@@ -70,6 +75,10 @@ const T = {
     interestBasis: 'Juros simples sobre o principal em aberto, contados por dia (ano de 365 dias).',
     disclaimer: 'Preços de venda, lucros e retornos projetados são estimativas baseadas nas premissas atuais e não são garantia de resultados futuros.',
     contact: 'Contato',
+    scenarios: 'Retorno: cash × financiado', cash: 'Cash', financed: 'Financiado', roiOnCash: 'Retorno sobre o caixa investido',
+    annualizedRoi: 'Retorno anualizado', cashAtClosing: 'Caixa necessário no closing', peakCash: 'Pico de caixa investido',
+    maxLoan: 'Empréstimo máximo', loanFees: 'Taxas do empréstimo', totalInterest: 'Juros totais',
+    scenarioNote: 'O cenário financiado considera um construction loan com LTC de {ltc}, juros de {rate} ao ano e taxas de {fees}, em um prazo de {months} meses. O retorno anualizado é o retorno sobre o caixa investido dividido pelo prazo (simples, sem capitalização).',
   },
 };
 
@@ -142,6 +151,33 @@ function offeringBlocks(p, r, F) {
   return blocks;
 }
 
+/* cash × financiado: o mesmo investimento nos dois cenários (modelo do deal analyzer) */
+function scenarioBlocks(p, F, params) {
+  const L = F.L;
+  const S = Inv.financingScenarios(p, params || Mdl.DEFAULT_PARAMS, Mdl);
+  if (!S.ready) return [];
+  const { cash: a, loan: b } = S;
+  const dash = (v, f) => (v ? f(v) : '—');
+  const row = (label, f) => [label, f(a), f(b)];
+  return [
+    { type: 'heading', text: L.scenarios },
+    { type: 'table', strongRows: [0, 1, 2],
+      cols: [{ label: '', x: 54, w: 230 }, { label: L.cash, x: 420, align: 'right' }, { label: L.financed, x: 558, align: 'right' }],
+      rows: [
+        row(L.estProfit, (x) => [F.money(x.profit), sign(x.profit)]),
+        row(L.roiOnCash, (x) => [F.pct(x.roi), sign(x.roi)]),
+        row(L.annualizedRoi, (x) => [F.pct(x.annualized), sign(x.annualized)]),
+        row(L.cashAtClosing, (x) => F.money(x.cashAtClosing)),
+        row(L.peakCash, (x) => F.money(x.peakCash)),
+        row(L.maxLoan, (x) => dash(x.maxLoan, F.money)),
+        row(L.loanFees, (x) => dash(x.loanFees, F.money)),
+        row(L.totalInterest, (x) => dash(x.interest, F.money)),
+      ] },
+    { type: 'text', size: 8, color: 'muted',
+      text: L.scenarioNote.replace('{ltc}', F.pct(b.ltc)).replace('{rate}', F.pct2(b.rate)).replace('{fees}', F.pct2(b.loanFeesPct)).replace('{months}', a.months) },
+  ];
+}
+
 function scheduleTable(p, F, withStatus, asOfIso) {
   const L = F.L;
   const asOf = Inv.parseDate(asOfIso || Inv.todayIso());
@@ -163,10 +199,11 @@ function scheduleTable(p, F, withStatus, asOfIso) {
     }) };
 }
 
-function propertyDoc(p, lang, profile) {
+function propertyDoc(p, lang, profile, params) {
   const F = fmt(lang), L = F.L;
   const r = Inv.computeProperty(p);
   const blocks = offeringBlocks(p, r, F);
+  blocks.push(...scenarioBlocks(p, F, params));
   if (r.hasSchedule) {
     blocks.push({ type: 'heading', text: L.schedule });
     blocks.push(scheduleTable(p, F, false));
@@ -179,7 +216,7 @@ function propertyDoc(p, lang, profile) {
   };
 }
 
-function availableDoc(properties, lang, profile) {
+function availableDoc(properties, lang, profile, params) {
   const F = fmt(lang), L = F.L;
   const list = properties.map((p) => ({ p, r: Inv.computeProperty(p) })).filter((x) => x.r.status === 'available');
   const blocks = [{
@@ -193,6 +230,7 @@ function availableDoc(properties, lang, profile) {
   for (const { p, r } of list) {
     blocks.push({ type: 'heading', text: p.name || L.property });
     blocks.push(...offeringBlocks(p, r, F).filter((b) => b.type !== 'heading'));
+    blocks.push(...scenarioBlocks(p, F, params).filter((b) => b.type !== 'heading'));
   }
   blocks.push({ type: 'text', text: L.disclaimer, size: 8, color: 'muted' });
   return {

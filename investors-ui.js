@@ -199,7 +199,7 @@ function renderPropertyList(holder) {
   holder.querySelector('#avail-pdf').addEventListener('click', () => {
     const lang = holder.querySelector('#avail-lang').value;
     if (!list.some((x) => x.r.status === 'available')) { alert('Nenhum imóvel disponível para listar.'); return; }
-    sharePdf(Pdf.reportPdf(Reports.availableDoc(state.properties, lang, state.profile)),
+    sharePdf(Pdf.reportPdf(Reports.availableDoc(state.properties, lang, state.profile, state.params)),
       lang === 'pt' ? 'investimentos-disponiveis.pdf' : 'available-investments.pdf',
       lang === 'pt' ? 'Investimentos disponíveis' : 'Available investments');
   });
@@ -289,6 +289,13 @@ function renderPropertyDetail(el, p) {
           ${fld('Compra do terreno (closing)', inp(p, 'landDate', 'date'))}
           ${fld('Início da construção', inp(p, 'constrStart', 'date'))}
         </div>
+        <h3 class="form-sec">Financiamento (cenário financiado)</h3>
+        <p class="hint">Usados para comparar o retorno em cash com o financiado. Em branco, valem os padrões da aba Ajustes.</p>
+        <div class="field-grid">
+          ${fld('LTC', inp(p, 'ltc', 'pct', `padrão ${fmtNum.format(state.params.ltc * 100)}`))}
+          ${fld('Juros anuais', inp(p, 'rate', 'pct', `padrão ${fmtNum.format(state.params.rate * 100)}`))}
+          ${fld('Loan fees all-in', inp(p, 'loanFeesPct', 'pct', `padrão ${fmtNum.format(state.params.loanFeesPct * 100)}`))}
+        </div>
         <p class="plan-line" id="plan-line"></p>
         <h3 class="form-sec">Venda estimada</h3>
         <div class="field-grid">
@@ -377,9 +384,43 @@ function renderPropertyDetail(el, p) {
   });
   el.querySelector('#prop-pdf').addEventListener('click', () => {
     const lang = el.querySelector('#prop-lang').value;
-    sharePdf(Pdf.reportPdf(Reports.propertyDoc(p, lang, state.profile)),
+    sharePdf(Pdf.reportPdf(Reports.propertyDoc(p, lang, state.profile, state.params)),
       (lang === 'pt' ? 'oferta-' : 'offering-') + slugify(p.name, 'imovel') + '.pdf', p.name || 'Imóvel');
   });
+}
+
+const SCEN_MISSING = { sale: 'o preço de venda estimado', saleDate: 'a data estimada de venda',
+  landDate: 'a data de compra do terreno', constrStart: 'o início da construção', cost: 'o preço do terreno ou da construção' };
+// compara o retorno do mesmo imóvel pago em cash e com construction loan (modelo do Single Deal Analyzer)
+function scenariosCard(p) {
+  const S = Investors.financingScenarios(p, state.params, Model);
+  if (!S.ready) {
+    return `<div class="card"><h2>Retorno: cash × financiado</h2>
+      <p class="hint">Para comparar os dois cenários, preencha ${S.missing.map((k) => SCEN_MISSING[k]).join(', ')}.</p></div>`;
+  }
+  const { cash: a, loan: b } = S;
+  const row = (label, f, strong) => `<tr${strong ? ' class="row-strong"' : ''}><td>${esc(label)}</td><td>${f(a)}</td><td>${f(b)}</td></tr>`;
+  return `<div class="card">
+    <h2>Retorno: cash × financiado</h2>
+    <p class="hint">O mesmo imóvel pago todo em cash e com construction loan (LTC ${fmtPct1.format(b.ltc)}, juros ${fmtPct2.format(b.rate)} a.a.,
+      fees ${fmtPct2.format(b.loanFeesPct)}), no modelo do deal analyzer. Prazo de ${a.months} meses.</p>
+    <div class="table-wrap"><table class="scen-table">
+      <thead><tr><th></th><th>Cash</th><th>Financiado</th></tr></thead>
+      <tbody>
+        ${row('Lucro projetado', (x) => pnl(x.profit), true)}
+        ${row('ROI sobre o caixa investido', (x) => pnlPct(x.roi), true)}
+        ${row('ROI anualizado', (x) => pnlPct(x.annualized), true)}
+        ${row('Caixa no closing', (x) => money(x.cashAtClosing))}
+        ${row('Pico de caixa próprio', (x) => money(x.peakCash))}
+        ${row('Empréstimo máximo (LTC)', (x) => (x.maxLoan ? money(x.maxLoan) : '—'))}
+        ${row('Land advance', (x) => (x.landAdvance ? money(x.landAdvance) : '—'))}
+        ${row('Loan fees', (x) => (x.loanFees ? money(x.loanFees) : '—'))}
+        ${row('Juros totais', (x) => (x.interest ? money(x.interest) : '—'))}
+        ${row('Margem sobre a venda', (x) => pnlPct(x.margin))}
+        ${row('Break-even (preço de venda)', (x) => money(x.breakEven))}
+      </tbody>
+    </table></div>
+  </div>`;
 }
 
 function renderPropertyResults(holder, p) {
@@ -388,8 +429,9 @@ function renderPropertyResults(holder, p) {
   const matches = r.status === 'available'
     ? state.clients.filter((c) => isInvestor(c) && c.looking && Investors.propertyMatchesClient(p, c, r)) : [];
   holder.innerHTML = `
+    ${scenariosCard(p)}
     <div class="card">
-      <div class="row-between"><h2>Retorno${est}</h2>${chip(PROP_STATUS[r.status], 'st-' + r.status)}</div>
+      <div class="row-between"><h2>Acompanhamento${est ? ' e retorno estimado' : ' e retorno'}</h2>${chip(PROP_STATUS[r.status], 'st-' + r.status)}</div>
       ${Math.abs(r.scheduleDiff) >= 1 ? `<div class="warn-box">O cronograma de pagamentos soma <b>${money(r.totalCost)}</b>, mas o investimento
         planejado é de <b>${money(r.plan.total)}</b>. Os cálculos usam o cronograma. Para alinhar, ajuste os pagamentos ou toque em
         "Gerar cronograma a partir do investimento".</div>` : ''}
@@ -401,7 +443,7 @@ function renderPropertyResults(holder, p) {
       </div>
       <div class="stat-row">
         ${tile('Retorno' + est, r.hasSale ? pnlPct(r.roi) : '—', true)}
-        ${tile('Anualizado', r.annualized != null ? pnlPct(r.annualized) : '—', true)}
+        ${tile('Anualizado (pelas datas dos pagamentos)', r.annualized != null ? pnlPct(r.annualized) : '—', true)}
         ${tile('Pago até hoje', fmtPct1.format(r.paidPct), true)}
       </div>
       <div class="table-wrap"><table class="kv-table kv-wrap"><tbody>
@@ -424,12 +466,12 @@ function renderPropertyResults(holder, p) {
     </div>
     ${r.status === 'available' ? `<div class="card">
       <h2>Clientes procurando</h2>
-      ${matches.length ? `<p class="hint">Clientes cujo orçamento e região combinam com este imóvel.</p>
+      ${matches.length ? `<p class="hint">Clientes cujo orçamento de terreno e região combinam com este imóvel.</p>
         <div class="deal-list">${matches.map((c) => `<div class="deal-item static">
           <span class="deal-item-top"><span class="deal-name">${esc(c.name || '(sem nome)')}</span>
             <button class="mini-btn" data-open-client="${esc(c.id)}">Abrir</button>
             <button class="mini-btn" data-assign="${esc(c.id)}">Atribuir</button></span>
-          <span class="deal-item-bottom">${esc([c.budgetMax ? 'até ' + money(c.budgetMax) : null, c.location].filter(Boolean).join(' · ') || 'sem restrições')}</span>
+          <span class="deal-item-bottom">${esc([c.budgetMax ? 'terreno até ' + money(c.budgetMax) : null, c.location].filter(Boolean).join(' · ') || 'sem restrições')}</span>
         </div>`).join('')}</div>`
         : '<p class="hint">Nenhum cliente procurando combina com este imóvel (orçamento e região).</p>'}
     </div>` : ''}`;
@@ -456,7 +498,7 @@ function renderClientList(holder) {
         if (s.props.length) parts.push(`${s.props.length} imóvel(is) · pago ${money(s.paid)} de ${money(s.committed)}`);
         if (s.loans.length) parts.push(`principal ${money(s.principal)} · juros a pagar ${money(s.interestDue)}`);
         if (!parts.length) parts.push(isInvestor(c) && c.looking
-          ? 'Procurando' + (c.budgetMax ? ` até ${money(c.budgetMax)}` : '') + (c.location ? ` · ${c.location}` : '') : 'Sem movimentos');
+          ? 'Procurando' + (c.budgetMax ? ` terreno até ${money(c.budgetMax)}` : '') + (c.location ? ` · ${c.location}` : '') : 'Sem movimentos');
         return `<button class="deal-item" data-client="${esc(c.id)}">
           <span class="deal-item-top"><span class="deal-name">${esc(c.name || '(sem nome)')}</span>
             ${chip(CLIENT_KIND[c.kind] || CLIENT_KIND.investor, 'k-' + c.kind)}</span>
@@ -494,7 +536,7 @@ function renderClientDetail(el, c) {
           ${fld('Idioma dos PDFs', sel(c, 'lang', [['en', 'Inglês'], ['pt', 'Português']]))}
           ${isInvestor(c) ? fld('Procurando imóvel?', `<select data-f="looking" data-type="bool">
               <option value="1" ${c.looking ? 'selected' : ''}>Sim</option><option value="0" ${c.looking ? '' : 'selected'}>Não</option></select>`)
-            + fld('Orçamento máximo', inp(c, 'budgetMax', 'money', 'sem limite'))
+            + fld('Orçamento para o terreno (máx.)', inp(c, 'budgetMax', 'money', 'sem limite'))
             + fld('Região de interesse', inp(c, 'location', 'text', 'ex.: Ocala, Bradenton')) : ''}
           ${fld('Notas', inp(c, 'notes', 'area'), true)}
         </div>
@@ -553,7 +595,7 @@ function renderClientResults(holder, c) {
     ? `<div class="card">
         <h2>Atribuir um imóvel disponível</h2>
         <p class="hint">Ao atribuir, o imóvel sai dos disponíveis e este cliente deixa de constar como procurando.
-          "Compatível" = dentro do orçamento e da região de interesse.</p>
+          "Compatível" = terreno dentro do orçamento e na região de interesse.</p>
         ${availList}
       </div>`
     : `<div class="card"><details>
@@ -612,7 +654,7 @@ function renderClientResults(holder, c) {
   holder.querySelectorAll('[data-offer]').forEach((b) => b.addEventListener('click', () => {
     const p = state.properties.find((x) => x.id === b.dataset.offer);
     if (!p) return;
-    sharePdf(Pdf.reportPdf(Reports.propertyDoc(p, c.lang, state.profile)),
+    sharePdf(Pdf.reportPdf(Reports.propertyDoc(p, c.lang, state.profile, state.params)),
       (c.lang === 'pt' ? 'oferta-' : 'offering-') + slugify(p.name, 'imovel') + '.pdf', p.name || 'Imóvel');
   }));
   holder.querySelectorAll('[data-loan-pdf]').forEach((b) => b.addEventListener('click', () => {

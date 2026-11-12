@@ -63,8 +63,10 @@ near('plano: investimento total', r.totalCost, 349000);
 near('plano: lucro', r.profit, 440000 * 0.92 - 349000);
 check('plano: sem cronograma', !r.hasSchedule && r.status === 'available' && r.scheduleDiff === 0);
 near('plano: venda por sq ft', r.salePerSqft, 440000 / 1650, 0.01);
-check('plano: casa com cliente pelo custo planejado', Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 350000 }))
-  && !Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 340000 })));
+// o orçamento do cliente é só para o terreno ($80k aqui), não para o investimento todo ($349k)
+check('orçamento do cliente compara com o terreno', Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 80000 }))
+  && Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 100000 }))
+  && !Inv.propertyMatchesClient(planned, Inv.makeClient({ budgetMax: 79000 })));
 near('plano: orçamento fixo vale mais que sq ft', Inv.computeProperty(Object.assign({}, planned, { constrBudget: 300000 })).constrCost, 300000);
 const STD = [[0.05, 0], [0.15, 4], [0.15, 5], [0.20, 6], [0.20, 7], [0.15, 8], [0.10, 9]].map(([pct, offset], i) => ({ desc: 'Etapa ' + (i + 1), pct, offset }));
 let sched = Inv.planSchedule(planned, STD);
@@ -78,6 +80,39 @@ check('cronograma: outro nº de draws → iguais por mês', sched.filter((x) => 
   && sched[2].amount === 66000 && sched[5].dueDate === '2026-10-15');
 r = Inv.computeProperty(Object.assign({}, planned, { payments: sched, landPrice: 90000 }), '2026-06-01');
 near('cronograma diferente do plano é sinalizado', r.scheduleDiff, -10000);
+
+/* ---- cash × financiado: exemplo da planilha Single_Deal_Analyzer-2.xlsx (aba Deal Analysis, em Cash) ---- */
+const Model = require('../model.js');
+const sheet = Inv.makeProperty({ id: 'p4', landPrice: 440000, constrBudget: 640000, estSalePrice: 1600000, saleCostPct: 0.08,
+  landDate: '2026-08-31', constrStart: '2026-09-15', estSaleDate: '2028-01-15', numDraws: 7 });
+let sc = Inv.financingScenarios(sheet, Model.DEFAULT_PARAMS, Model, '2026-06-01');
+check('cenários prontos', sc.ready);
+near('cash: lucro (G20)', sc.cash.profit, 392000);
+near('cash: ROI (G26)', sc.cash.roi, 0.362962963, 1e-8);
+near('cash: ROI anualizado (G27)', sc.cash.annualized, 0.2419753086, 1e-8);
+near('cash: caixa no closing (G8)', sc.cash.cashAtClosing, 440000);
+near('cash: pico de caixa (G13)', sc.cash.peakCash, 1080000);
+near('cash: break-even (G22)', sc.cash.breakEven, 1173913.043, 0.01);
+check('cash: sem empréstimo', sc.cash.interest === 0 && sc.cash.loanFees === 0 && sc.cash.maxLoan === 0);
+const direct = Model.computeDeal({ status: 'Active', financing: 'Construction Loan', closing: '2026-08-31', constrStart: '2026-09-15',
+  saleDate: '2028-01-15', land: 440000, constr: 640000, sale: 1600000, numDraws: 7, advTiming: 'At Closing', advDelayMo: 0,
+  holdCost: 0, basis: 'After Land Reimbursement', draws: [] }, Model.DEFAULT_PARAMS);
+near('financiado: igual ao modelo do deal (lucro)', sc.loan.profit, direct.profit);
+near('financiado: igual ao modelo do deal (ROI)', sc.loan.roi, direct.headlineROI, 1e-9);
+near('financiado: juros', sc.loan.interest, direct.totalInterest);
+near('financiado: empréstimo máximo = 85% do custo', sc.loan.maxLoan, 918000);
+check('financiado: menos lucro, mais retorno sobre o caixa', sc.loan.profit < sc.cash.profit && sc.loan.roi > sc.cash.roi);
+// mesmo resultado com o cronograma já lançado, e taxa própria do imóvel
+sc = Inv.financingScenarios(Object.assign({}, sheet, { payments: Inv.planSchedule(sheet, Model.DEFAULT_PARAMS.drawSchedule) }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
+near('cronograma lançado dá o mesmo cash', sc.cash.profit, 392000);
+near('cronograma lançado dá o mesmo financiado', sc.loan.profit, direct.profit);
+const cheap = Inv.financingScenarios(Object.assign({}, sheet, { rate: 0.05 }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
+check('taxa própria do imóvel reduz os juros', cheap.loan.interest < direct.totalInterest && cheap.loan.rate === 0.05);
+// outros custos entram como caixa próprio nos dois cenários
+const withOther = Inv.financingScenarios(Object.assign({}, sheet, { otherCosts: 10000 }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
+near('outros custos reduzem o lucro', withOther.cash.profit, 382000);
+near('outros custos aumentam o caixa', withOther.cash.peakCash, 1090000);
+check('faltando datas: avisa o que falta', (() => { const x = Inv.financingScenarios(Object.assign({}, sheet, { estSaleDate: null, landDate: null, constrStart: null }), Model.DEFAULT_PARAMS, Model); return !x.ready && x.missing.includes('saleDate') && x.missing.includes('landDate'); })());
 
 /* ---- empréstimo com amortização ---- */
 const loan = Inv.makeLoan({ id: 'l1', clientId: 'c2', label: 'Loan A', rate: 0.12, entries: [
@@ -102,10 +137,10 @@ near('juros param com principal zero',
 near('empréstimo vazio', Inv.computeLoan(Inv.makeLoan(), '2026-07-01').totalOwed, 0);
 
 /* ---- casamento e resumos ---- */
-const investor = Inv.makeClient({ id: 'c1', name: 'Ana Souza', kind: 'investor', lang: 'pt', budgetMax: 350000, location: 'Bradenton, Sarasota' });
+const investor = Inv.makeClient({ id: 'c1', name: 'Ana Souza', kind: 'investor', lang: 'pt', budgetMax: 90000, location: 'Bradenton, Sarasota' });
 const lender = Inv.makeClient({ id: 'c2', name: 'John Lender', kind: 'lender', lang: 'en' });
 check('casa por orçamento e cidade', Inv.propertyMatchesClient(avail, investor));
-check('orçamento baixo não casa', !Inv.propertyMatchesClient(avail, Object.assign({}, investor, { budgetMax: 300000 })));
+check('orçamento baixo não casa', !Inv.propertyMatchesClient(avail, Object.assign({}, investor, { budgetMax: 70000 })));
 check('cidade errada não casa', !Inv.propertyMatchesClient(avail, Object.assign({}, investor, { location: 'Miami' })));
 check('imóvel com cliente não casa', !Inv.propertyMatchesClient(prop, investor));
 
@@ -120,7 +155,8 @@ near('visão geral: principal', O.principal, 60000);
 const profile = { company: 'Dantez Homes', contact: '(555) 010-0100' };
 const docs = {
   oferta: Reports.propertyDoc(Object.assign({}, avail, { description: 'Casa nova de 3 quartos. '.repeat(20), beds: 3, baths: 2, sqft: 1650, lotSize: '0.25 acre' }), 'en', profile),
-  ofertaPlano: Reports.propertyDoc(planned, 'pt', profile),
+  ofertaPlano: Reports.propertyDoc(Object.assign({}, planned, { estSaleDate: '2027-12-01' }), 'pt', profile),
+  ofertaPlanilha: Reports.propertyDoc(Object.assign({}, sheet, { name: 'Sheet example' }), 'en', profile, Model.DEFAULT_PARAMS),
   disponiveis: Reports.availableDoc([prop, avail], 'pt', profile),
   extratoPt: Reports.statementDoc(investor, [prop, sold, avail], [loan], profile, '2026-06-01'),
   extratoEn: Reports.statementDoc(lender, [prop], [Object.assign({}, loan, {

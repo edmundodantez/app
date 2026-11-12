@@ -52,7 +52,13 @@ Reproduz o modelo das planilhas, célula por célula:
     o cliente paga ao construtor) é gerado a partir desse plano, com as etapas
     do cronograma padrão dos deals, e pode ser editado. Também dá para criar um
     imóvel a partir de um deal existente.
-  - **Clientes** que procuram imóveis (orçamento máximo e região): o app mostra
+  - **Cash × financiado**: cada imóvel é rodado pelo modelo do Single Deal
+    Analyzer nos dois cenários — tudo em cash e com construction loan (LTC,
+    land advance, reembolso dos draws, loan fees e juros; padrões da aba
+    Ajustes ou valores próprios do imóvel). A comparação (lucro, ROI sobre o
+    caixa investido, ROI anualizado, caixa no closing, pico de caixa, juros)
+    aparece na tela do imóvel e no PDF da oferta.
+  - **Clientes** que procuram imóveis (orçamento para o terreno e região): o app mostra
     quais imóveis disponíveis combinam com cada cliente e vice-versa. Ao
     atribuir um imóvel, você marca a data em que cada draw foi pago e vê
     quanto falta, o que está vencido e o retorno — estimado pelo preço de

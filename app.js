@@ -339,7 +339,7 @@ function renderDashboard() {
             <span class="row-main"><b>${esc(p.name || '(sem nome)')}</b>
               <small>${esc([p.city, fits(n, 'cliente compatível', 'clientes compatíveis')].filter(Boolean).join(' · '))}</small></span>
             <span class="row-side"><b>${money(r.totalCost)}</b>
-              <small>${r.hasSale ? `retorno est. ${fmtPct1.format(r.roi)}` : 'sem preço de venda'}</small></span>
+              <small>terreno ${money(r.landCost)}${r.hasSale ? ` · retorno est. ${fmtPct1.format(r.roi)}` : ''}</small></span>
           </button>`).join('')}</div>
           ${availRows.length > 6 ? `<p class="hint">+ ${availRows.length - 6} outro(s) imóvel(is) disponível(is).</p>` : ''}`
           : '<p class="empty">Nenhum imóvel disponível no momento.</p>'}
@@ -351,7 +351,7 @@ function renderDashboard() {
           <button class="row-item" data-client-open="${esc(c.id)}">
             <span class="row-main"><b>${esc(c.name || '(sem nome)')}</b>
               <small>${esc(c.location || 'qualquer região')}</small></span>
-            <span class="row-side"><b>${c.budgetMax ? 'até ' + money(c.budgetMax) : 'sem limite'}</b>
+            <span class="row-side"><b>${c.budgetMax ? 'terreno até ' + money(c.budgetMax) : 'sem limite'}</b>
               <small>${fits(n, 'imóvel compatível', 'imóveis compatíveis')}</small></span>
           </button>`).join('')}</div>
           ${seekerRows.length > 6 ? `<p class="hint">+ ${seekerRows.length - 6} outro(s) cliente(s) procurando.</p>` : ''}`

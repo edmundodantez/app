@@ -1,6 +1,6 @@
 'use strict';
 
-const CACHE = 'investcalc-v16';
+const CACHE = 'investcalc-v17';
 const ASSETS = [
   './',
   './index.html',
