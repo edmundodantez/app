@@ -33,13 +33,19 @@ const makeProperty = (over) => Object.assign({
   // plano do investimento (como no deal analyzer)
   landPrice: null, constrPerSqft: null, constrBudget: null, otherCosts: null,
   landDate: null, constrStart: null, numDraws: 7,
-  // cenário financiado: em branco usam os padrões globais (Ajustes)
-  ltc: null, rate: null, loanFeesPct: null,
+  // apresentação (PDF Visão Geral): textos do bairro, destaques e vendas comparáveis
+  tagline: '', area: '', areaText: '', buyerText: '',
+  hl1t: '', hl1x: '', hl2t: '', hl2x: '', hl3t: '', hl3x: '',
+  comps: [],               // { id, address, year, dist, status, price, sqft, inAvg }
   estSalePrice: 0, saleCostPct: 0.08, estSaleDate: null,
   clientId: null, purchaseDate: null,
   payments: [],            // { id, kind:'land'|'draw'|'other', desc, amount, dueDate, paidDate }
   soldPrice: null, soldDate: null,
   notes: '',
+}, over);
+
+const makeComp = (over) => Object.assign({
+  id: newId('cmp'), address: '', year: '', dist: '', status: '', price: 0, sqft: 0, inAvg: true,
 }, over);
 
 const makePayment = (over) => Object.assign({
@@ -254,7 +260,9 @@ function computeLoan(loan, asOfIso) {
  */
 function financingScenarios(p, params, Model, asOfIso) {
   const r = computeProperty(p, asOfIso);
-  const pays = r.hasSchedule ? (p.payments || []) : planSchedule(p, params && params.drawSchedule);
+  // os termos do financiamento são sempre os mesmos (aba Ajustes); as taxas já incluem o seguro
+  const P = Object.assign({}, Model.DEFAULT_PARAMS, params || {}, { insurance: 0 });
+  const pays = r.hasSchedule ? (p.payments || []) : planSchedule(p, P.drawSchedule);
   const dateOf = (x) => x.paidDate || x.dueDate || null;
   const landPay = pays.find((x) => x.kind === 'land' && num(x.amount) > 0);
   let draws = pays.filter((x) => x.kind === 'draw' && num(x.amount) > 0)
@@ -275,31 +283,69 @@ function financingScenarios(p, params, Model, asOfIso) {
   if (r.landCost + r.constrCost <= 0) missing.push('cost');
   if (missing.length) return { ready: false, missing };
 
+  const other = r.otherCost;
+  const raw = {};
   const run = (financing) => {
     const R = Model.computeDeal({
       status: 'Active', financing, closing, constrStart, saleDate: r.saleDate,
       land: r.landCost, constr: r.constrCost, sale: r.salePrice,
-      ltc: p.ltc ?? null, rate: p.rate ?? null, loanFeesPct: p.loanFeesPct ?? null,
+      ltc: null, rate: null, loanFeesPct: null,
       landAdvPct: null, reimbPct: null, reimbDelayDays: null, insurance: null,
       saleCostPct: r.saleCostPct, numDraws: draws.length, draws,
       advTiming: 'At Closing', advDelayMo: 0, holdCost: 0, basis: 'After Land Reimbursement',
-    }, params);
-    const other = r.otherCost;
+    }, P);
+    raw[financing] = R;
     const profit = R.profit - other;
     const basis = R.peakAfterLandReimb + other;
     const roi = basis > 0 ? profit / basis : 0;
+    const avgCapital = R.avgCapital + other;
+    const reimbursed = R.drawRows.reduce((s, d) => s + d.reimb, 0);
     return {
       financing, profit, roi,
       annualized: R.holdingMonths > 0 ? roi * 12 / R.holdingMonths : 0,
       cashAtClosing: R.initialCashAtClosing + other,
-      peakCash: R.peakExposure + other, basis,
-      maxLoan: R.maxLoan, landAdvance: R.landAdvance, loanFees: R.loanFees, interest: R.totalInterest,
+      peakCash: R.peakExposure + other, basis, peakDate: R.peakDate,
+      avgCapital, roiAvg: avgCapital > 0 ? profit / avgCapital : 0,
+      maxLoan: R.maxLoan, landAdvance: R.landAdvance, reimbursed, loanUsed: R.landAdvance + reimbursed,
+      loanFees: R.loanFees, interest: R.totalInterest, financeCost: R.loanFees + R.totalInterest,
       breakEven: r.saleCostPct < 1 ? R.breakEven + other / (1 - r.saleCostPct) : 0,
       months: R.holdingMonths, margin: r.salePrice > 0 ? profit / r.salePrice : 0,
       ltc: R.resolved.ltc, rate: R.resolved.rate, loanFeesPct: R.resolved.loanFeesPct,
+      landAdvPct: R.resolved.landAdvPct, reimbPct: R.resolved.reimbPct, reimbDelayDays: R.resolved.reimbDelayDays,
     };
   };
-  return { ready: true, cash: run('Cash'), loan: run('Construction Loan') };
+  const cash = run('Cash'), loan = run('Construction Loan');
+  const A = raw['Construction Loan'], B = raw.Cash;
+  const totalCost = r.landCost + r.constrCost + other;
+  return {
+    ready: true, cash, loan,
+    // dados do projeto e séries para a comparação e os PDFs
+    project: {
+      land: r.landCost, constr: r.constrCost, other, totalCost, sale: r.salePrice, saleCostPct: r.saleCostPct,
+      netSale: r.netSale, sqft: num(p.sqft), constrPerSqft: r.constrPerSqft, salePerSqft: r.salePerSqft,
+      closing: parseDate(closing), constrStart: parseDate(constrStart), saleDate: parseDate(r.saleDate),
+      months: A.holdingMonths,
+      lastDraw: A.drawRows.reduce((t, d) => (d.isOn && d.payDate != null ? Math.max(t, d.payDate) : t), 0) || null,
+      financedPct: totalCost > 0 ? loan.loanUsed / totalCost : 0,
+    },
+    draws: A.drawRows.filter((d) => d.isOn && d.amount > 0).map((d) => ({
+      num: d.num, desc: d.desc, pct: r.constrCost > 0 ? d.amount / r.constrCost : 0,
+      payDate: d.payDate, amount: d.amount, reimbDate: d.reimb > 0 ? d.reimbDate : null, reimb: d.reimb,
+    })),
+    // caixa do investidor mês a mês: quanto entra, quanto volta e quanto fica no negócio
+    monthly: A.months.map((mA, i) => {
+      const mB = B.months[i];
+      const add = i === 0 ? other : 0, last = i === A.months.length - 1;
+      return { start: mA.start, end: mA.end,
+        fin: { put: mA.H + add, back: mA.K, held: last ? 0 : mA.O + other },
+        cash: { put: mB.H + add, back: mB.K, held: last ? 0 : mB.O + other } };
+    }),
+    sensitivity: A.sensitivity.map((sA, i) => {
+      const sB = B.sensitivity[i];
+      const pf = (s, base) => { const profit = s.profit - other; return { profit, roi: base > 0 ? profit / base : 0 }; };
+      return { scenario: sA.scenario, price: sA.price, fin: pf(sA, loan.basis), cash: pf(sB, cash.basis) };
+    }),
+  };
 }
 
 /* ===== Casamento cliente × imóvel disponível ===== */
@@ -361,7 +407,7 @@ function overview(properties, clients, loans, asOfIso) {
 
 const Investors = {
   parseDate, isoDate, todayIso, newId, num,
-  makeProperty, makePayment, makeClient, makeLoan, makeEntry, buildSchedule, planOf, planSchedule,
+  makeProperty, makeComp, makePayment, makeClient, makeLoan, makeEntry, buildSchedule, planOf, planSchedule,
   financingScenarios, xirr, computeProperty, computeLoan, propertyMatchesClient, clientSummary, overview,
 };
 if (typeof module !== 'undefined' && module.exports) module.exports = Investors;

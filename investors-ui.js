@@ -1,5 +1,5 @@
 'use strict';
-/* global Investors, Reports, Pdf, Model, state, save, esc, money, parseNum, fmtNum, fmtPct1, fmtPct2,
+/* global Investors, Reports, Decks, Pdf, Model, monthLabel, state, save, esc, money, parseNum, fmtNum, fmtPct1, fmtPct2,
    dateLabel, sharePdf, slugify, pnl, pnlPct */
 
 /*
@@ -236,6 +236,23 @@ function assignProperty(p, c) {
 }
 
 /* ===== Imóvel ===== */
+function compsTable(p) {
+  if (!(p.comps || []).length) return '<p class="hint">Nenhuma comparável. Adicione vendas ou ofertas da vizinhança que sustentam o preço.</p>';
+  return `<div class="table-wrap"><table class="draw-editor pay-editor">
+    <thead><tr><th>Endereço</th><th>Ano</th><th>Dist.</th><th>Status</th><th>Preço</th><th>SF</th><th>Na média?</th><th></th></tr></thead>
+    <tbody>${p.comps.map((x) => `<tr>
+      <td data-label="Endereço">${rowInp(x, 'address', 'text', 16)}</td>
+      <td data-label="Ano">${rowInp(x, 'year', 'text', 4)}</td>
+      <td data-label="Distância">${rowInp(x, 'dist', 'text', 6)}</td>
+      <td data-label="Status (ex.: Vendida jun 2026)">${rowInp(x, 'status', 'text', 12)}</td>
+      <td data-label="Preço">${rowInp(x, 'price', 'money', 8)}</td>
+      <td data-label="SF">${rowInp(x, 'sqft', 'money', 5)}</td>
+      <td data-label="Entra na média de $/SF?"><select data-row="${esc(x.id)}" data-rk="inAvg" data-type="bool">
+        <option value="1" ${x.inAvg !== false ? 'selected' : ''}>Sim</option><option value="0" ${x.inAvg === false ? 'selected' : ''}>Não</option></select></td>
+      <td class="cell-del"><button type="button" class="x-btn" data-del="${esc(x.id)}" aria-label="Remover comparável">× <span>Remover</span></button></td>
+    </tr>`).join('')}</tbody></table></div>`;
+}
+
 function paymentsTable(p) {
   if (!p.payments.length) return '<p class="hint">Nenhum pagamento. Adicione o terreno e os draws, ou gere o cronograma abaixo.</p>';
   return `<div class="table-wrap"><table class="draw-editor pay-editor">
@@ -263,7 +280,9 @@ function renderPropertyDetail(el, p) {
       <h2 class="deal-title">${esc(p.name || '(sem nome)')}</h2>
       <div class="row-gap wrap" style="margin:8px 0 4px">
         ${langSelect('prop-lang', owner ? owner.lang : 'en')}
-        <button class="mini-btn" id="prop-pdf">Compartilhar PDF da oferta</button>
+        <button class="mini-btn primary" id="prop-overview">PDF Visão Geral</button>
+        <button class="mini-btn primary" id="prop-compare">PDF Financiado × À Vista</button>
+        <button class="mini-btn" id="prop-pdf">PDF da oferta (simples)</button>
       </div>
       <form id="prop-form" onsubmit="return false">
         <h3 class="form-sec">Imóvel</h3>
@@ -289,13 +308,6 @@ function renderPropertyDetail(el, p) {
           ${fld('Compra do terreno (closing)', inp(p, 'landDate', 'date'))}
           ${fld('Início da construção', inp(p, 'constrStart', 'date'))}
         </div>
-        <h3 class="form-sec">Financiamento (cenário financiado)</h3>
-        <p class="hint">Usados para comparar o retorno em cash com o financiado. Em branco, valem os padrões da aba Ajustes.</p>
-        <div class="field-grid">
-          ${fld('LTC', inp(p, 'ltc', 'pct', `padrão ${fmtNum.format(state.params.ltc * 100)}`))}
-          ${fld('Juros anuais', inp(p, 'rate', 'pct', `padrão ${fmtNum.format(state.params.rate * 100)}`))}
-          ${fld('Loan fees all-in', inp(p, 'loanFeesPct', 'pct', `padrão ${fmtNum.format(state.params.loanFeesPct * 100)}`))}
-        </div>
         <p class="plan-line" id="plan-line"></p>
         <h3 class="form-sec">Venda estimada</h3>
         <div class="field-grid">
@@ -315,6 +327,25 @@ function renderPropertyDetail(el, p) {
           ${fld('Data da venda', inp(p, 'soldDate', 'date'))}
           ${fld('Notas internas (não saem no PDF)', inp(p, 'notes', 'area'), true)}
         </div>
+        <details class="pres">
+          <summary>Apresentação — textos do PDF Visão Geral</summary>
+          <p class="hint">Opcionais. A página do bairro e a de comparáveis só entram no PDF quando preenchidas; o resto é gerado dos números.</p>
+          <div class="field-grid">
+            ${fld('Chamada (ex.: Casa de alto padrão com piscina)', inp(p, 'tagline', 'text'), true)}
+            ${fld('Bairro / nome do projeto', inp(p, 'area', 'text', 'ex.: Delaney Park'))}
+            ${fld('Por que este bairro?', inp(p, 'areaText', 'area'), true)}
+            ${fld('Destaque 1 — título', inp(p, 'hl1t', 'text'))}
+            ${fld('Destaque 1 — texto', inp(p, 'hl1x', 'text'), true)}
+            ${fld('Destaque 2 — título', inp(p, 'hl2t', 'text'))}
+            ${fld('Destaque 2 — texto', inp(p, 'hl2x', 'text'), true)}
+            ${fld('Destaque 3 — título', inp(p, 'hl3t', 'text'))}
+            ${fld('Destaque 3 — texto', inp(p, 'hl3x', 'text'), true)}
+            ${fld('Comprador-alvo', inp(p, 'buyerText', 'area'), true)}
+          </div>
+          <h3 class="form-sec">Vendas comparáveis</h3>
+          <div id="comp-table"></div>
+          <button type="button" class="ghost-btn" id="add-comp">+ Adicionar comparável</button>
+        </details>
       </form>
     </div>
     <div class="card">
@@ -348,6 +379,30 @@ function renderPropertyDetail(el, p) {
     }));
   };
   const redrawPays = () => { el.querySelector('#pay-table').innerHTML = paymentsTable(p); bindPayRows(); refresh(); };
+  const redrawComps = () => {
+    const holder = el.querySelector('#comp-table');
+    holder.innerHTML = compsTable(p);
+    bindRows(holder, p.comps, () => {});
+    holder.querySelectorAll('[data-del]').forEach((b) => b.addEventListener('click', () => {
+      p.comps = p.comps.filter((x) => x.id !== b.dataset.del);
+      save(); redrawComps();
+    }));
+  };
+  if (!Array.isArray(p.comps)) p.comps = [];
+  redrawComps();
+  el.querySelector('#add-comp').addEventListener('click', () => { p.comps.push(Investors.makeComp()); save(); redrawComps(); });
+  const deck = (kind) => () => {
+    const lang = el.querySelector('#prop-lang').value;
+    const bytes = kind === 'overview' ? Decks.overviewPdf(p, lang, state.profile, state.params) : Decks.comparisonPdf(p, lang, state.profile, state.params);
+    if (!bytes) {
+      const S = Investors.financingScenarios(p, state.params, Model);
+      alert('Para gerar este PDF, preencha ' + S.missing.map((k) => SCEN_MISSING[k]).join(', ') + '.');
+      return;
+    }
+    sharePdf(bytes, slugify(p.name, 'imovel') + '-' + Decks.fileBase(kind, lang) + '.pdf', p.name || 'Imóvel');
+  };
+  el.querySelector('#prop-overview').addEventListener('click', deck('overview'));
+  el.querySelector('#prop-compare').addEventListener('click', deck('compare'));
 
   bindForm(el.querySelector('#prop-form'), p, (k, final) => {
     if (k === 'name') el.querySelector('.deal-title').textContent = p.name || '(sem nome)';
@@ -395,31 +450,41 @@ const SCEN_MISSING = { sale: 'o preço de venda estimado', saleDate: 'a data est
 function scenariosCard(p) {
   const S = Investors.financingScenarios(p, state.params, Model);
   if (!S.ready) {
-    return `<div class="card"><h2>Retorno: cash × financiado</h2>
-      <p class="hint">Para comparar os dois cenários, preencha ${S.missing.map((k) => SCEN_MISSING[k]).join(', ')}.</p></div>`;
+    return `<div class="card"><h2>Financiado × à vista</h2>
+      <p class="hint">Para comparar as duas opções, preencha ${S.missing.map((k) => SCEN_MISSING[k]).join(', ')}.</p></div>`;
   }
-  const { cash: a, loan: b } = S;
+  const { loan: a, cash: b, project: J } = S;
+  const mon = (t) => monthLabel(t);
   const row = (label, f, strong) => `<tr${strong ? ' class="row-strong"' : ''}><td>${esc(label)}</td><td>${f(a)}</td><td>${f(b)}</td></tr>`;
   return `<div class="card">
-    <h2>Retorno: cash × financiado</h2>
-    <p class="hint">O mesmo imóvel pago todo em cash e com construction loan (LTC ${fmtPct1.format(b.ltc)}, juros ${fmtPct2.format(b.rate)} a.a.,
-      fees ${fmtPct2.format(b.loanFeesPct)}), no modelo do deal analyzer. Prazo de ${a.months} meses.</p>
+    <h2>Financiado × à vista</h2>
+    <p class="hint">O mesmo projeto, duas formas de capitalizar. Financiamento de ${fmtPct1.format(J.financedPct)} do custo a
+      ${fmtPct2.format(a.rate)} a.a., taxas de ${fmtPct2.format(a.loanFeesPct)} (seguro incluso), adiantamento de
+      ${fmtPct2.format(a.landAdvPct)} do terreno no fechamento e reembolso dos draws em ${a.reimbDelayDays} dias — os mesmos termos
+      para todos os imóveis (aba Ajustes). Prazo de ~${J.months - 1} meses.</p>
     <div class="table-wrap"><table class="scen-table">
-      <thead><tr><th></th><th>Cash</th><th>Financiado</th></tr></thead>
+      <thead><tr><th></th><th>A — Financiado</th><th>B — À vista</th></tr></thead>
       <tbody>
+        ${row('Caixa necessário no fechamento', (x) => money(x.cashAtClosing))}
+        ${row('Pico de caixa no negócio', (x) => `${money(x.peakCash)}<br><small>${mon(x.peakDate)}</small>`)}
+        ${row('Capital médio investido', (x) => money(x.avgCapital))}
+        ${row('Custos de financiamento (taxas + juros)', (x) => (x.financeCost ? money(x.financeCost) : '—'))}
         ${row('Lucro projetado', (x) => pnl(x.profit), true)}
-        ${row('ROI sobre o caixa investido', (x) => pnlPct(x.roi), true)}
-        ${row('ROI anualizado', (x) => pnlPct(x.annualized), true)}
-        ${row('Caixa no closing', (x) => money(x.cashAtClosing))}
-        ${row('Pico de caixa próprio', (x) => money(x.peakCash))}
-        ${row('Empréstimo máximo (LTC)', (x) => (x.maxLoan ? money(x.maxLoan) : '—'))}
-        ${row('Land advance', (x) => (x.landAdvance ? money(x.landAdvance) : '—'))}
-        ${row('Loan fees', (x) => (x.loanFees ? money(x.loanFees) : '—'))}
-        ${row('Juros totais', (x) => (x.interest ? money(x.interest) : '—'))}
-        ${row('Margem sobre a venda', (x) => pnlPct(x.margin))}
-        ${row('Break-even (preço de venda)', (x) => money(x.breakEven))}
+        ${row('Retorno sobre o pico de caixa', (x) => pnlPct(x.roi), true)}
+        ${row('Retorno anualizado (simples)', (x) => pnlPct(x.annualized))}
+        ${row('Retorno sobre o capital médio', (x) => pnlPct(x.roiAvg))}
+        ${row('Preço de venda de equilíbrio', (x) => money(x.breakEven))}
       </tbody>
     </table></div>
+    <h3 class="form-sec">Sensibilidade do preço de venda</h3>
+    <div class="table-wrap"><table class="sens-table">
+      <thead><tr><th>Cenário</th><th>Preço</th><th>Lucro A</th><th>ROI A</th><th>Lucro B</th><th>ROI B</th></tr></thead>
+      <tbody>${S.sensitivity.map((s) => `<tr${s.scenario === 0 ? ' class="row-strong"' : ''}>
+        <td>${s.scenario === 0 ? 'Base' : (s.scenario > 0 ? '+' : '') + fmtNum.format(s.scenario * 100) + '%'}</td>
+        <td>${money(s.price)}</td><td>${pnl(s.fin.profit)}</td><td>${pnlPct(s.fin.roi)}</td>
+        <td>${pnl(s.cash.profit)}</td><td>${pnlPct(s.cash.roi)}</td></tr>`).join('')}</tbody>
+    </table></div>
+    <p class="hint">A = financiado, B = à vista. O ROI é medido sobre o pico de caixa investido; a sensibilidade mantém os custos de financiamento do caso-base.</p>
   </div>`;
 }
 

@@ -18,7 +18,36 @@ const CP1252 = {
   'Í': 0xCD, 'Ó': 0xD3, 'Ô': 0xD4, 'Õ': 0xD5, 'Ú': 0xDA, 'Ç': 0xC7,
   '—': 0x97, '–': 0x96, '·': 0xB7, 'º': 0xBA, 'ª': 0xAA, '±': 0xB1,
   '’': 0x92, '‘': 0x91, '“': 0x93, '”': 0x94, '…': 0x85,
+  '×': 0xD7, '•': 0x95, '°': 0xB0, '\u00a0': 0xA0, 'È': 0xC8, 'Ü': 0xDC, 'Ñ': 0xD1,
 };
+
+// larguras (1/1000 em) dos bytes 32..255 em cada fonte base-14 usada:
+// F1 Helvetica, F2 Helvetica-Bold, F3 Times-Bold, F4 Helvetica-Oblique
+const FONT_W = {"F1":[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,750,556,0,222,556,333,1000,556,556,333,1000,667,333,1000,0,611,0,0,222,222,333,333,350,556,1000,333,1000,500,333,944,0,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,0,737,552,400,549,333,333,333,576,537,333,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,549,611,556,556,556,556,500,556,500],"F2":[278,333,474,556,556,889,722,238,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,333,333,584,584,584,611,975,722,722,722,722,667,611,778,722,278,556,722,611,833,722,778,667,778,722,667,611,722,667,944,667,667,611,333,278,333,584,556,333,556,611,556,611,556,333,611,611,278,278,556,278,889,611,611,611,611,389,556,333,611,556,778,556,556,500,389,280,389,584,750,556,0,278,556,500,1000,556,556,333,1000,667,333,1000,0,611,0,0,278,278,500,500,350,556,1000,333,1000,556,333,944,0,500,667,278,333,556,556,556,556,280,556,333,737,370,556,584,0,737,552,400,549,333,333,333,576,556,333,333,333,365,556,834,834,834,611,722,722,722,722,722,722,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,556,556,556,556,556,278,278,278,278,611,611,611,611,611,611,611,549,611,611,611,611,611,556,611,556],"F3":[250,333,555,500,500,1000,833,278,333,333,500,570,250,333,250,278,500,500,500,500,500,500,500,500,500,500,333,333,570,570,570,500,930,722,667,722,722,667,611,778,778,389,500,778,667,944,722,778,611,778,722,556,667,722,722,1000,722,722,667,333,278,333,581,500,333,500,556,444,556,444,333,500,556,278,333,556,278,833,556,500,556,556,444,389,333,556,500,722,500,500,444,394,220,394,520,778,500,0,333,500,500,1000,500,500,333,1000,556,333,1000,0,667,0,0,333,333,500,500,350,500,1000,333,1000,389,333,722,0,444,722,250,333,500,500,500,500,220,500,333,747,300,500,570,0,747,500,400,549,300,300,333,576,540,334,333,300,330,500,750,750,750,500,722,722,722,722,722,722,1000,722,667,667,667,667,389,389,389,389,722,722,778,778,778,778,778,570,778,722,722,722,722,722,611,556,500,500,500,500,500,500,722,444,444,444,444,444,278,278,278,278,500,556,500,500,500,500,500,549,500,556,556,556,556,500,556,500],"F4":[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278,556,556,556,556,556,556,556,556,556,556,278,278,584,584,584,556,1015,667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611,278,278,278,469,556,333,556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500,334,260,334,584,750,556,0,222,556,333,1000,556,556,333,1000,667,333,1000,0,611,0,0,222,222,333,333,350,556,1000,333,1000,500,333,944,0,500,667,278,333,556,556,556,556,260,556,333,737,370,556,584,0,737,552,400,549,333,333,333,576,537,333,333,333,365,556,834,834,834,611,667,667,667,667,667,667,1000,722,667,667,667,667,278,278,278,278,722,722,778,778,778,778,778,584,778,722,722,722,722,667,667,611,556,556,556,556,556,556,889,500,556,556,556,556,278,278,278,278,556,556,556,556,556,556,556,549,611,556,556,556,556,500,556,500]};
+// largura real de um texto, para centralizar, alinhar à direita e quebrar linhas
+function textWidth(str, font, size, cs) {
+  const tab = FONT_W[font] || FONT_W.F1;
+  let w = 0, n = 0;
+  for (const ch of String(str)) {
+    const code = ch.codePointAt(0);
+    const b = code <= 0x7E ? code : (CP1252[ch] ?? 0x3F);
+    w += tab[b - 32] || 500;
+    n++;
+  }
+  return (w / 1000) * size + (cs || 0) * n;
+}
+function wrapWidth(text, font, size, maxW) {
+  const lines = [];
+  for (const para of String(text).split('\n')) {
+    let line = '';
+    for (const word of para.split(/\s+/).filter(Boolean)) {
+      const next = line ? line + ' ' + word : word;
+      if (line && textWidth(next, font, size) > maxW) { lines.push(line); line = word; } else line = next;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
 
 function encodeText(str) {
   // escapa os metacaracteres de string do PDF e converte para bytes cp1252
@@ -43,15 +72,19 @@ const N = (v) => (Math.round(v * 100) / 100).toString();
  *  { t:'line', x1, y1, x2, y2, w, color:[r,g,b] }
  *  { t:'poly', pts:[[x,y],...], w, color:[r,g,b] }
  *  { t:'rect', x, y, w, h, color:[r,g,b] }
- * Retorna Uint8Array de um PDF Letter (612×792) com N páginas.
+ *  { t:'rrect', x, y, w, h, r, fill:[r,g,b], stroke:[r,g,b], lw }   — cantos arredondados
+ * Texto aceita cs (espaçamento entre letras). Retorna Uint8Array de um PDF com N páginas,
+ * Letter (612×792) por padrão; uma página pode definir items.size = [largura, altura].
+ * opts.extFonts acrescenta F3 (Times-Bold) e F4 (Helvetica-Oblique).
  */
-function buildPdf(pages) {
+function buildPdf(pages, opts) {
+  const ext = !!(opts && opts.extFonts);
   const streams = pages.map((items) => {
     const content = [];
     for (const it of items) {
       if (it.t === 'text') {
         const [r, g, b] = it.color || [0, 0, 0];
-        content.push(...ascii(`BT /${it.font || 'F1'} ${it.size || 10} Tf ${N(r)} ${N(g)} ${N(b)} rg 1 0 0 1 ${N(it.x)} ${N(it.y)} Tm (`));
+        content.push(...ascii(`BT /${it.font || 'F1'} ${it.size || 10} Tf ${N(it.cs || 0)} Tc ${N(r)} ${N(g)} ${N(b)} rg 1 0 0 1 ${N(it.x)} ${N(it.y)} Tm (`));
         content.push(...encodeText(it.s));
         content.push(...ascii(') Tj ET\n'));
       } else if (it.t === 'line') {
@@ -62,6 +95,21 @@ function buildPdf(pages) {
         let d = `${N(r)} ${N(g)} ${N(b)} RG ${N(it.w || 1.5)} w 1 j 1 J `;
         it.pts.forEach(([x, y], i) => { d += `${N(x)} ${N(y)} ${i ? 'l' : 'm'} `; });
         content.push(...ascii(d + 'S\n'));
+      } else if (it.t === 'rrect') {
+        const { x, y, w, h } = it;
+        const rad = Math.min(it.r || 0, w / 2, h / 2), k = rad * 0.5523;
+        let d = '';
+        if (it.fill) d += `${N(it.fill[0])} ${N(it.fill[1])} ${N(it.fill[2])} rg `;
+        if (it.stroke) d += `${N(it.stroke[0])} ${N(it.stroke[1])} ${N(it.stroke[2])} RG ${N(it.lw || 0.75)} w `;
+        d += `${N(x + rad)} ${N(y)} m ${N(x + w - rad)} ${N(y)} l `
+          + `${N(x + w - rad + k)} ${N(y)} ${N(x + w)} ${N(y + rad - k)} ${N(x + w)} ${N(y + rad)} c `
+          + `${N(x + w)} ${N(y + h - rad)} l `
+          + `${N(x + w)} ${N(y + h - rad + k)} ${N(x + w - rad + k)} ${N(y + h)} ${N(x + w - rad)} ${N(y + h)} c `
+          + `${N(x + rad)} ${N(y + h)} l `
+          + `${N(x + rad - k)} ${N(y + h)} ${N(x)} ${N(y + h - rad + k)} ${N(x)} ${N(y + h - rad)} c `
+          + `${N(x)} ${N(y + rad)} l `
+          + `${N(x)} ${N(y + rad - k)} ${N(x + rad - k)} ${N(y)} ${N(x + rad)} ${N(y)} c h `;
+        content.push(...ascii(d + (it.fill && it.stroke ? 'B' : it.fill ? 'f' : 'S') + '\n'));
       } else if (it.t === 'rect') {
         const [r, g, b] = it.color || [0, 0, 0];
         content.push(...ascii(`${N(r)} ${N(g)} ${N(b)} rg ${N(it.x)} ${N(it.y)} ${N(it.w)} ${N(it.h)} re f\n`));
@@ -78,11 +126,19 @@ function buildPdf(pages) {
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>',
     '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>',
   ];
-  pages.forEach((_, i) => {
-    objects.push('<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] '
-      + `/Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${6 + 2 * i} 0 R >>`);
+  // fontes extras ficam depois das páginas, para não mudar a numeração dos objetos existentes
+  const f3 = 5 + 2 * pages.length, f4 = f3 + 1;
+  const fontRes = '/F1 3 0 R /F2 4 0 R' + (ext ? ` /F3 ${f3} 0 R /F4 ${f4} 0 R` : '');
+  pages.forEach((items, i) => {
+    const [pw, ph] = items.size || [612, 792];
+    objects.push(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${N(pw)} ${N(ph)}] `
+      + `/Resources << /Font << ${fontRes} >> >> /Contents ${6 + 2 * i} 0 R >>`);
     objects.push({ stream: streams[i] });
   });
+  if (ext) {
+    objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>');
+    objects.push('<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Oblique /Encoding /WinAnsiEncoding >>');
+  }
 
   const bytes = [];
   const offsets = [0];
@@ -422,7 +478,7 @@ function reportPdf(doc) {
   return buildPdf(pages);
 }
 
-const Pdf = { buildPdf, analysisPdf, reportPdf };
+const Pdf = { buildPdf, analysisPdf, reportPdf, textWidth, wrapWidth };
 if (typeof module !== 'undefined' && module.exports) module.exports = Pdf;
 else global.Pdf = Pdf;
 })(typeof window !== 'undefined' ? window : globalThis);

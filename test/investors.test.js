@@ -96,7 +96,7 @@ near('cash: break-even (G22)', sc.cash.breakEven, 1173913.043, 0.01);
 check('cash: sem empréstimo', sc.cash.interest === 0 && sc.cash.loanFees === 0 && sc.cash.maxLoan === 0);
 const direct = Model.computeDeal({ status: 'Active', financing: 'Construction Loan', closing: '2026-08-31', constrStart: '2026-09-15',
   saleDate: '2028-01-15', land: 440000, constr: 640000, sale: 1600000, numDraws: 7, advTiming: 'At Closing', advDelayMo: 0,
-  holdCost: 0, basis: 'After Land Reimbursement', draws: [] }, Model.DEFAULT_PARAMS);
+  holdCost: 0, basis: 'After Land Reimbursement', draws: [] }, Object.assign({}, Model.DEFAULT_PARAMS, { insurance: 0 }));
 near('financiado: igual ao modelo do deal (lucro)', sc.loan.profit, direct.profit);
 near('financiado: igual ao modelo do deal (ROI)', sc.loan.roi, direct.headlineROI, 1e-9);
 near('financiado: juros', sc.loan.interest, direct.totalInterest);
@@ -106,13 +106,72 @@ check('financiado: menos lucro, mais retorno sobre o caixa', sc.loan.profit < sc
 sc = Inv.financingScenarios(Object.assign({}, sheet, { payments: Inv.planSchedule(sheet, Model.DEFAULT_PARAMS.drawSchedule) }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
 near('cronograma lançado dá o mesmo cash', sc.cash.profit, 392000);
 near('cronograma lançado dá o mesmo financiado', sc.loan.profit, direct.profit);
-const cheap = Inv.financingScenarios(Object.assign({}, sheet, { rate: 0.05 }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
-check('taxa própria do imóvel reduz os juros', cheap.loan.interest < direct.totalInterest && cheap.loan.rate === 0.05);
+// os termos vêm sempre dos Ajustes: mudar lá muda todos os imóveis; campos antigos do imóvel são ignorados
+const cheap = Inv.financingScenarios(Object.assign({}, sheet, { rate: 0.01 }), Object.assign({}, Model.DEFAULT_PARAMS, { rate: 0.05 }), Model, '2026-06-01');
+check('termos globais valem para todos os imóveis', cheap.loan.interest < direct.totalInterest && cheap.loan.rate === 0.05);
 // outros custos entram como caixa próprio nos dois cenários
 const withOther = Inv.financingScenarios(Object.assign({}, sheet, { otherCosts: 10000 }), Model.DEFAULT_PARAMS, Model, '2026-06-01');
 near('outros custos reduzem o lucro', withOther.cash.profit, 382000);
 near('outros custos aumentam o caixa', withOther.cash.peakCash, 1090000);
 check('faltando datas: avisa o que falta', (() => { const x = Inv.financingScenarios(Object.assign({}, sheet, { estSaleDate: null, landDate: null, constrStart: null }), Model.DEFAULT_PARAMS, Model); return !x.ready && x.missing.includes('saleDate') && x.missing.includes('landDate'); })());
+
+/* ---- exemplo dos PDFs "Casa Delaney Park" (Financiado vs À Vista) ---- */
+const delaney = Inv.makeProperty({ id: 'p5', name: 'Casa Nova — Delaney Park', city: 'Delaney Park, Orlando, Flórida',
+  tagline: 'Casa de alto padrão com piscina, do zero', area: 'Delaney Park',
+  landPrice: 365000, sqft: 3600, constrPerSqft: 160, estSalePrice: 1450000, saleCostPct: 0.08,
+  landDate: '2026-10-10', constrStart: '2026-10-10', estSaleDate: '2028-04-10', numDraws: 7 });
+delaney.payments = Inv.planSchedule(delaney, Model.DEFAULT_PARAMS.drawSchedule);
+[0, 4, 6, 9, 12, 15, 17].forEach((mo, i) => { const d = new Date(Date.UTC(2026, 9 + mo, 10)); delaney.payments[i + 1].dueDate = d.toISOString().slice(0, 10); });
+const dp = Inv.financingScenarios(delaney, Model.DEFAULT_PARAMS, Model, '2026-06-01');
+near('delaney: custo total', dp.project.totalCost, 941000);
+near('delaney: venda líquida', dp.project.netSale, 1334000);
+near('delaney à vista: lucro', dp.cash.profit, 393000);
+near('delaney à vista: caixa no fechamento', dp.cash.cashAtClosing, 365000);
+near('delaney à vista: pico', dp.cash.peakCash, 941000);
+near('delaney à vista: ROI 41,8%', dp.cash.roi, 0.4176, 5e-4);
+near('delaney à vista: anualizado 26,4%', dp.cash.annualized, 0.2638, 5e-4);
+near('delaney à vista: break-even', dp.cash.breakEven, 1022826, 1);
+near('delaney financiado: caixa no fechamento', dp.loan.cashAtClosing, 185750);
+near('delaney financiado: taxas (5% incl. seguro)', dp.loan.loanFees, 39750);
+near('delaney financiado: empréstimo usado', dp.loan.loanUsed, 795000);
+near('delaney financiado: adiantamento do terreno', dp.loan.landAdvance, 219000);
+// juros e pico ficam a ~2% do PDF de exemplo ($67.460 / $335.860): o modelo da planilha usa saldo médio mensal
+check('delaney financiado: juros próximos do exemplo', Math.abs(dp.loan.interest - 67460) / 67460 < 0.03);
+check('delaney financiado: pico próximo do exemplo', Math.abs(dp.loan.peakCash - 335860) / 335860 < 0.01);
+check('delaney: 7 draws com reembolso em 30 dias', dp.draws.length === 7 && dp.draws[0].amount === 28800
+  && Inv.isoDate(dp.draws[0].reimbDate) === '2026-11-09');
+check('delaney: caixa mês a mês à vista', dp.monthly.length === 19 && Math.round(dp.monthly[0].cash.held) === 393800
+  && Math.round(dp.monthly[17].cash.held) === 941000 && dp.monthly[18].cash.held === 0);
+near('delaney: sensibilidade base = lucro', dp.sensitivity.find((x) => x.scenario === 0).cash.profit, 393000);
+near('delaney: sensibilidade -10% à vista', dp.sensitivity[0].cash.profit, 259600);
+
+/* ---- PDFs de apresentação (Financiado vs À Vista e Visão Geral) ---- */
+const Decks = require('../decks.js');
+const pdfText = (bytes) => Buffer.from(bytes).toString('latin1');
+const pageCount = (txt) => (txt.match(/\/Type \/Page /g) || []).length;
+const validPdf = (label, txt) => {
+  const xref = +/startxref\n(\d+)/.exec(txt)[1];
+  const offs = [...txt.slice(xref).matchAll(/(\d{10}) 00000 n /g)].map((m) => +m[1]);
+  check(`${label}: estrutura válida`, txt.startsWith('%PDF-1.4') && txt.slice(xref, xref + 4) === 'xref'
+    && offs.every((o, i) => txt.slice(o).startsWith(`${i + 1} 0 obj`)));
+};
+const cmpPt = pdfText(Decks.comparisonPdf(delaney, 'pt', { company: 'Land Hub' }, Model.DEFAULT_PARAMS));
+validPdf('comparação', cmpPt);
+check('comparação: 2 páginas carta', pageCount(cmpPt) === 2 && cmpPt.includes('/MediaBox [0 0 612 792]'));
+check('comparação: números do exemplo', ['$941,000', '$1,450,000', '$393,000', '$365,000', '$185,750', '$1,022,826', '$39,750', '$795,000', '9.25%', '41.8%', '26.4%']
+  .every((s) => cmpPt.includes(s)));
+check('comparação: títulos em português', cmpPt.includes('OP\xc7\xc3O A') && cmpPt.includes('SENSIBILIDADE DO PRE\xc7O DE VENDA'));
+check('comparação em inglês', pdfText(Decks.comparisonPdf(delaney, 'en', {}, Model.DEFAULT_PARAMS)).includes('FINANCING COMPARISON'));
+const ovPlain = pdfText(Decks.overviewPdf(delaney, 'pt', { company: 'Land Hub' }, Model.DEFAULT_PARAMS));
+validPdf('visão geral', ovPlain);
+check('visão geral: slides 16:9, sem bairro nem comparáveis = 10 páginas', pageCount(ovPlain) === 10 && ovPlain.includes('/MediaBox [0 0 960 540]'));
+check('visão geral: marca e serifa', ovPlain.includes('LAND HUB') && ovPlain.includes('/Times-Bold'));
+const rich = Object.assign({}, delaney, { areaText: 'Bairro histórico.', hl1t: 'Escolas', hl1x: 'Nota A',
+  comps: [Inv.makeComp({ address: '427 Raehn St', price: 2149000, sqft: 3712 }), Inv.makeComp({ address: '447 Baker St', price: 1600000, sqft: 3031 })] });
+const ovRich = pdfText(Decks.overviewPdf(rich, 'pt', {}, Model.DEFAULT_PARAMS));
+check('visão geral: bairro e comparáveis acrescentam 2 páginas', pageCount(ovRich) === 12 && ovRich.includes('427 Raehn St') && ovRich.includes('Por que Delaney Park?'));
+check('sem dados suficientes não gera PDF', Decks.overviewPdf(Inv.makeProperty({ name: 'x' }), 'pt', {}, Model.DEFAULT_PARAMS) === null
+  && Decks.comparisonPdf(Inv.makeProperty({ name: 'x' }), 'pt', {}, Model.DEFAULT_PARAMS) === null);
 
 /* ---- empréstimo com amortização ---- */
 const loan = Inv.makeLoan({ id: 'l1', clientId: 'c2', label: 'Loan A', rate: 0.12, entries: [
