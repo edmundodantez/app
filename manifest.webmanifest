@@ -1,6 +1,6 @@
 {
-  "name": "InvestCalc — Análise de Investimentos",
-  "short_name": "InvestCalc",
+  "name": "Investor Management",
+  "short_name": "Investor Mgmt",
   "description": "Gestão de deals imobiliários, investidores e credores.",
   "lang": "pt-BR",
   "start_url": ".",

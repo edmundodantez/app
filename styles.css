@@ -755,3 +755,6 @@ th { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.68rem; }
   .dash-stack { display: block; grid-column: 3; grid-row: 1; }
 }
 .badge.paid { color: var(--good-text); background: color-mix(in srgb, var(--good-text) 12%, transparent); }
+@media (min-width: 900px) {
+  .brand-name { white-space: normal; line-height: 1.15; font-size: 0.98rem; }
+}

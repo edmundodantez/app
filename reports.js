@@ -92,7 +92,7 @@ function fmt(lang) {
   };
 }
 const sign = (v) => (v > 0.005 ? 'good' : v < -0.005 ? 'bad' : undefined);
-const brand = (profile) => (profile && profile.company ? profile.company : 'InvestCalc');
+const brand = (profile) => (profile && profile.company ? profile.company : 'Investor Management');
 function footer(F, profile) {
   const c = profile && profile.contact ? ` · ${F.L.contact}: ${profile.contact}` : '';
   return brand(profile) + c;

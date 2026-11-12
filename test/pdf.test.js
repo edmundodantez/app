@@ -14,7 +14,7 @@ function check(label, ok) {
 const meses = Array.from({ length: 50 }, (_, i) => `m${i + 1}`);
 const doc = {
   title: 'Deal de Teste — Ação → ok',
-  subtitle: 'InvestCalc · gerada em 19/07/2026',
+  subtitle: 'Investor Management · gerada em 19/07/2026',
   sections: [
     { heading: 'Premissas', rows: [['Preço do terreno', '$350,000'], ['Construção', '$576,000']] },
     { heading: 'Resultados', rows: [['Lucro projetado', '$184,768', 'good'], ['ROI', '-9,1%', 'bad']] },
@@ -37,7 +37,7 @@ const doc = {
     cols: [{ label: 'Mês', x: 54 }, { label: 'Líquido', x: 200 }],
     rows: meses.map((m, i) => [m, [`$${i}`, i % 2 ? 'good' : 'bad']]),
   },
-  footer: 'Gerado pelo InvestCalc.',
+  footer: 'Gerado pelo Investor Management.',
 };
 
 const bytes = Pdf.analysisPdf(doc);

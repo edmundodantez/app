@@ -1,4 +1,4 @@
-# InvestCalc — Real Estate Cashflow (PWA)
+# Investor Management (PWA)
 
 Web app para iPhone baseado nas planilhas **Single_Deal_Analyzer2.xlsx**
 (lógica do deal) e **Edmundo_Cashflow.xlsx** (portfólio multi-deal). Sem
@@ -119,7 +119,7 @@ errados. O app calcula esses totais com as colunas corretas.
 
 1. Abra o endereço do app no **Safari**.
 2. Toque em **Compartilhar → Adicionar à Tela de Início**.
-3. O InvestCalc vira um app com ícone próprio e tela cheia.
+3. O Investor Management vira um app com ícone próprio e tela cheia.
 
 ## Rodar localmente
 
